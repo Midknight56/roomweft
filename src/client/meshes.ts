@@ -7,7 +7,15 @@ export function tag(text: string, colour: string = theme.ink): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
   const ctx = canvas.getContext('2d')!; ctx.fillStyle = theme.panel; ctx.fillRect(0, 0, 512, 96); ctx.fillStyle = colour; ctx.font = 'bold 42px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 62);
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false })); sprite.scale.set(88, 16, 1); sprite.renderOrder = 10; return sprite;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false })); sprite.userData.tag = true; sprite.scale.set(88, 16, 1); sprite.renderOrder = 10; return sprite;
+}
+export function setTagMode(root: THREE.Object3D, mode: 'Overview' | 'Plan' | 'Walk'): void {
+  root.traverse(child => {
+    if (!(child instanceof THREE.Sprite) || !child.userData.tag || !child.material.map) return;
+    const map = child.material.map;
+    map.repeat.x = mode === 'Plan' ? -1 : 1;
+    map.offset.x = mode === 'Plan' ? 1 : 0;
+  });
 }
 export function proxy(kind: string, colour: string): THREE.Group {
   const group = new THREE.Group();
@@ -37,6 +45,13 @@ export function proxy(kind: string, colour: string): THREE.Group {
 }
 const loader = new GLTFLoader();
 const models = new Map<string, Promise<THREE.Group | null>>();
+let availableKinds: Promise<Set<string>> | null = null;
+function modelKinds(): Promise<Set<string>> {
+  availableKinds ??= fetch('/models/manifest.json').then(response => response.ok ? response.json() as Promise<{ kinds?: unknown }> : { kinds: [] })
+    .then(manifest => new Set(Array.isArray(manifest.kinds) ? manifest.kinds.filter((kind): kind is string => typeof kind === 'string') : []))
+    .catch(() => new Set<string>());
+  return availableKinds;
+}
 export function furniture(item: Footprint, colour: string, loaded: () => void = () => {}): THREE.Group {
   const root = new THREE.Group(); root.position.set(item.x, 0, item.z); root.rotation.y = item.rot * Math.PI / 180; root.userData.itemId = item.id;
   const visual = proxy(item.kind, colour); visual.scale.set(item.w, item.h, item.d); root.add(visual);
@@ -46,7 +61,7 @@ export function furniture(item: Footprint, colour: string, loaded: () => void = 
   }
   const kind = ({ 'reading-chair': 'armchair', 'chair': 'desk-chair', 'floor-lamp': 'floor-lamp', 'lamp': 'floor-lamp', 'table': 'side-table' } as Record<string, string>)[item.kind] ?? item.kind;
   let model = models.get(kind);
-  if (!model) { model = loader.loadAsync(`/models/${kind}.glb`).then(gltf => gltf.scene).catch(() => null); models.set(kind, model); }
+  if (!model) { model = modelKinds().then(kinds => kinds.has(kind) ? loader.loadAsync(`/models/${kind}.glb`).then(gltf => gltf.scene).catch(() => null) : null); models.set(kind, model); }
   void model.then(source => {
     if (!source || root.userData.disposed) return;
     const mesh = source.clone(true); const bounds = new THREE.Box3().setFromObject(mesh); const size = bounds.getSize(new THREE.Vector3());

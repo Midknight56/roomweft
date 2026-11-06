@@ -2,29 +2,29 @@
   "picks": [
     {
       "slot": "reading-chair",
-      "id": "7at5qI1",
-      "reason": "Mid-Century Linen Accent Chair with grey, black, white colour scheme and metal frame",
+      "id": "yCiYFHo",
+      "reason": "Grey linen chair complements light wood tones and quiet color palette.",
       "by": "ai"
     },
     {
       "slot": "floor-lamp",
-      "id": "MNWyAeq",
-      "reason": "Under the $180 share for this piece. Closest colours to the style.",
-      "by": "rules"
+      "id": "KL4vAFo",
+      "reason": "Grey metal floor lamp adds subtle contrast to calm studio.",
+      "by": "ai"
     },
     {
       "slot": "side-table",
       "id": "Q6oiUrl",
-      "reason": "Under the $135 share for this piece. Oak matches the style.",
-      "by": "rules"
+      "reason": "Warm oak side table provides neutral balance to minimalist design.",
+      "by": "ai"
     },
     {
       "slot": "rug",
-      "id": "YSzwVyg",
-      "reason": "Under the $225 share for this piece. Cotton and jute match the style.",
-      "by": "rules"
+      "id": "6oGLE2o",
+      "reason": "Neutral jute rug ties space together without clashing colors.",
+      "by": "ai"
     }
   ],
-  "neurons": 7.186074999999846,
-  "at": "2026-11-06T21:59:20.980Z"
+  "neurons": 2.9917168617248535,
+  "at": "2026-11-06T22:35:29.965Z"
 }

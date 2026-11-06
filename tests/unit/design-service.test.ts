@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DesignService, designLayout, type DesignInput } from '../../src/design/service';
 import { NeuronLedger } from '../../src/ai/ledger';
 import { validatePicks, type PickBinding } from '../../src/ai/pick';
@@ -7,6 +7,15 @@ import type { Candidate, DesignView } from '../../src/shared/api-types';
 import type { ProductCandidate, SearchResult } from '../../src/products/channel3';
 import { recordedPicks, recordedRuns } from '../../src/design/recorded';
 import { asD1, freshD1, LEDGER_SQL } from './d1-fake';
+import { makeRecordedData } from './recorded-fixture';
+vi.mock('../../src/design/recorded',async()=>{
+  const {makeRecordedData}=await import('./recorded-fixture');
+  return makeRecordedData();
+});
+beforeEach(()=>{
+  Object.assign(recordedRuns,makeRecordedData().recordedRuns);
+  for (const style of STYLES) delete recordedPicks[style.id];
+});
 const at=Date.UTC(2026,10,6,12);
 const candidate=(id:string,w:number,d:number,priceCents:number):ProductCandidate=>({id,title:id==='large'?'Large chair':'Jearey chair',priceCents,currency:'USD',url:'https://shop.example/chair',domain:'shop.example',colors:['#eeeeee'],materials:['linen'],dims:{w,d,h:90},dimsRaw:null});
 const large=candidate('large',90,100,24000), small=candidate('small',58,58,18600);
@@ -18,13 +27,28 @@ function fixture(options:{fail?:boolean;ai?:boolean;empty?:boolean;unknown?:bool
       :options.table && query===STYLES[0].queries['side-table'] ? [candidate('table',30,30,3000),candidate('table-small',20,20,2000)]:[];
     return {ok:true,candidates,source:{query,maxPrice,resultIds:candidates.map(c=>c.id),retrievedAt:at,cached:false,origin:'live'}};
   });
-  const run=vi.fn<PickBinding['run']>().mockResolvedValue({response:JSON.stringify({picks:[{slot:'reading-chair',id:'large',reason:'Soft linen gives a warm mood.'}]})});
+  const run=vi.fn<PickBinding['run']>().mockResolvedValue({response:JSON.stringify({picks:[{slot:'reading-chair',id:'large',reason:'Soft linen brings a quiet warmth to this calm reading corner.'}]})});
   let n=0;
   const service=new DesignService({db:asD1(db),search:{search},ledger:new NeuronLedger(asD1(db),()=>at),ai:options.ai?{run}:undefined,now:()=>at,id:()=>`design-${++n}`});
   const input:DesignInput={style:'warm-reading',budget:600,owned:OWNED_ITEMS.map(i=>({id:i.id,x:i.x,z:i.z,rot:i.rot,locked:i.locked})),live:true,visitorId:'visitor'};
   return {db,search,run,service,input};
 }
 describe('design service',()=>{
+  it('uses keyed chat picks with clean public reasons and reported neurons',async()=>{
+    const {service,input,run,db}=fixture({ai:true});
+    run.mockResolvedValueOnce({choices:[{message:{content:JSON.stringify({'reading-chair':{id:'large',reason:'Soft cotton jute adds warmth and suits this quiet reading corner.'}})}}],usage:{neurons:1.518}});
+    const design=await service.createDesign(input);
+    expect(design.mode).toBe('live'); expect(design.labels.ai).toBe('live');
+    expect(design.slots[0]).toMatchObject({by:'ai',reason:'Soft cotton jute adds warmth and suits this quiet reading corner.',pick:{id:'large'}});
+    expect(db.sqlite.prepare('SELECT neurons FROM ai_calls').get()).toMatchObject({neurons:1.518});
+  });
+  it('labels unsupported model answers as rules',async()=>{
+    const {service,input,run}=fixture({ai:true});
+    run.mockResolvedValueOnce({choices:[{message:{content:{'reading-chair':{id:'large',reason:'Soft linen brings a quiet warmth to this calm reading corner.'}}}}]});
+    const design=await service.createDesign(input);
+    expect(design.mode).toBe('rules'); expect(design.labels.ai).toBe('rules');
+    expect(design.slots[0].by).toBe('rules');
+  });
   it('anchors an unsized affordable chair and its follower using a nominal box',async()=>{
     const {service,input,search}=fixture({unknown:true,table:true});
     search.mockResolvedValueOnce({ok:true,candidates:[{...small,dims:null},{...large,priceCents:30000}],
@@ -53,13 +77,22 @@ describe('design service',()=>{
     expect(design.fit.overlaps).toEqual([]);
   });
   it('keeps the sized saved model chair and recomputes saved rules reasons at the current budget',async()=>{
+    const slots=recordedRuns['calm-studio'].slots;
+    slots['reading-chair'].candidates=[{...small,dims:null},small,large];
+    slots['side-table'].candidates=[{...candidate('saved-table',30,30,3000),materials:['oak']}];
+    for (const slot of Object.values(slots)) slot.resultIds=slot.candidates.map(c=>c.id);
+    const reason='Soft linen brings a quiet warmth to this calm reading corner.';
+    recordedPicks['calm-studio']={picks:[
+      {slot:'reading-chair',id:large.id,reason,by:'ai'},
+      {slot:'side-table',id:'saved-table',reason:'Under the $150 share for this piece. Oak matches the style.',by:'rules'},
+    ],neurons:1,at:new Date(at).toISOString()};
     const {service,input,run}=fixture({ai:true});
     const design=await service.createDesign({...input,style:'calm-studio',budget:900,live:false});
-    expect(design.slots[0].pick?.id).toBe('7at5qI1');
-    expect(design.slots[0].pick?.dims).not.toBeNull();
-    expect(design.slots[2].reason).toContain('$135');
+    expect(design.slots[0]).toMatchObject({pick:large,reason});
+    expect(design.slots[2].reason).toBe('Under the $135 share for this piece. Oak matches the style.');
     const lower=await service.createDesign({...input,style:'calm-studio',budget:800,live:false});
-    expect(lower.slots[2].reason).toContain('$120');
+    expect(lower.slots[0]).toMatchObject({pick:large,reason});
+    expect(lower.slots[2].reason).toBe('Under the $120 share for this piece. Oak matches the style.');
     expect(run).not.toHaveBeenCalled();
   });
   it('reports door failure for a 90 cm chair and a passing 58 cm alternate',async()=>{
@@ -191,7 +224,7 @@ describe('design service',()=>{
     const previous=recordedPicks['warm-reading'];
     try {
       const slots=recordedRuns['warm-reading'].slots;
-      recordedPicks['warm-reading']={picks:SLOTS.map(s=>({slot:s.id,id:slots[s.id].candidates[0].id,reason:'Soft textures suit the warm mood.',by:'ai'})),neurons:20,at:new Date(at).toISOString()};
+      recordedPicks['warm-reading']={picks:SLOTS.map(s=>({slot:s.id,id:slots[s.id].candidates[0].id,reason:'Soft textures bring a quiet warmth to this reading corner.',by:'ai'})),neurons:20,at:new Date(at).toISOString()};
       const {service,input,run}=fixture({ai:true});
       const design=await service.createDesign({...input,live:false});
       expect(design.labels.ai).toBe('recorded'); expect(design.mode).toBe('recorded');
@@ -203,7 +236,7 @@ describe('design service',()=>{
   });
   it('falls back to rules when the neuron ledger is full',async()=>{
     const {service,input,db,run}=fixture({ai:true});
-    db.sqlite.exec("INSERT INTO ai_calls (app,day,neurons) VALUES ('roomweft','2026-11-06',1180)");
+    db.sqlite.exec("INSERT INTO ai_calls (app,day,neurons) VALUES ('roomweft','2026-11-06',1191)");
     const design=await service.createDesign(input);
     expect(design.mode).toBe('rules'); expect(design.slots[0].by).toBe('rules');
     expect(run).not.toHaveBeenCalled();

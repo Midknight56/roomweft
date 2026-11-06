@@ -10,16 +10,18 @@ import type { DesignView, QuoteView, ReceiptView } from '../../src/shared/api-ty
 it('renders page hooks, keyboard actions, server totals, returns, readiness and phone copy', async () => {
   const bundle = await build({ entryPoints: ['src/client/main.ts'], bundle: true, write: false, format: 'esm', minify: true });
   expect(bundle.outputFiles[0].contents.byteLength).toBeLessThan(1_200_000);
-  const design: DesignView = { id: 'test-room', version: 1, mode: 'recorded', style: STYLES[0].id, budgetCents: 60000, owned: OWNED_ITEMS.map(item => ({ ...item })), fit: checkFit([], ROOM, DOOR, WINDOW), totals: { totalCents: 12345, budgetCents: 60000, overCents: 0, unverifiedCount: 0 }, labels: { search: 'recorded', ai: 'recorded' }, slots: SLOTS.map((slot, index) => ({ slot: slot.id, pick: { id: slot.id, title: `Item ${index}`, priceCents: 10000, currency: 'USD', url: 'https://example.test/', domain: 'example.test', colors: [], materials: [], dims: { w: 40, d: 40, h: 80 } }, by: 'recorded', reason: 'Fits this room.', placement: { x: 80 + index * 60, z: 130, rot: 0 }, alternates: [{ candidate: { id: 'alternative', title: 'Other item', priceCents: 5000, currency: 'USD', url: 'https://example.test/', domain: 'example.test', colors: [], materials: [], dims: null }, verified: false, fit: { passes: true, messages: [] }, priceDeltaCents: -5000 }], source: null })) };
+  const design: DesignView = { id: 'test-room', version: 1, mode: 'recorded', capturedAt: '2026-11-06T21:59:13.710Z', style: STYLES[0].id, budgetCents: 60000, owned: OWNED_ITEMS.map(item => ({ ...item })), fit: checkFit([], ROOM, DOOR, WINDOW), totals: { totalCents: 12345, budgetCents: 60000, overCents: 0, unverifiedCount: 0 }, labels: { search: 'recorded', ai: 'recorded' }, slots: SLOTS.map((slot, index) => ({ slot: slot.id, pick: { id: slot.id, title: `Item ${index}`, priceCents: 10000, currency: 'USD', url: 'https://example.test/', domain: 'example.test', colors: [], materials: [], dims: { w: 40, d: 40, h: 80 } }, by: 'recorded', reason: 'Fits this room.', placement: { x: 80 + index * 60, z: 130, rot: 0 }, alternates: [{ candidate: { id: 'alternative', title: 'Other item', priceCents: 5000, currency: 'USD', url: 'https://example.test/', domain: 'example.test', colors: [], materials: [], dims: null }, verified: false, fit: { passes: true, messages: [] }, priceDeltaCents: -5000 }], source: null })) };
   const quote: QuoteView = { id: 'q-one', designId: design.id, designVersion: 1, totalCents: 12345, state: 'paid', lines: design.slots.map(slot => ({ lineId: slot.slot, roomObjectId: slot.slot, productId: slot.pick!.id, title: slot.pick!.title, priceCents: slot.pick!.priceCents, currency: 'USD', url: slot.pick!.url, domain: slot.pick!.domain, fitStatus: 'fits', source: null })) };
   const receipt: ReceiptView = { quote, orderId: 'test-order', captureId: 'test-capture', capturedCents: 12345, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: [] };
   const browser = await chromium.launch({ headless: true, channel: 'chrome' });
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, hasTouch: true }); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     const moves: { itemId:string; x:number; z:number; rot:number }[] = [];
+    const modelRequests: string[] = [];
     let requests = 0; const designBudgets: number[] = []; let holdNext = false; let releaseDesign: (() => void) | undefined;
     await page.route('**/*', async route => {
       const url = new URL(route.request().url()); if (url.hostname !== 'room.test') return route.abort();
+      if (url.pathname.startsWith('/models/')) { modelRequests.push(url.pathname); if (url.pathname === '/models/manifest.json') return route.fulfill({ contentType:'application/json', body:'{"kinds":[]}' }); return route.fulfill({ status:404, body:'' }); }
       const json = (body: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
       if (url.pathname === '/api/design') { requests++; const body = route.request().postDataJSON() as { style: string; budget: number }; designBudgets.push(body.budget); if (holdNext) { holdNext = false; await new Promise<void>(resolve => { releaseDesign = resolve; }); } return json({...design,style:body.style,budgetCents:body.budget*100}); }
       if (url.pathname.endsWith('/move')) {
@@ -38,9 +40,12 @@ it('renders page hooks, keyboard actions, server totals, returns, readiness and 
     });
     await page.goto('http://room.test/?checkout=cancelled&message=Payment%20was%20cancelled.&keep=yes');
     await page.waitForFunction('window.__roomweftReady === true');
+    expect(modelRequests).toEqual(['/models/manifest.json']);
+    expect(await page.locator('#mode-label').innerText()).toBe('Recorded run from 6 Nov 2026');
     expect(designBudgets[0]).toBe(700);
     expect(new URL(page.url()).search).toBe('?keep=yes');
-    expect(await page.locator('.step').nth(3).innerText()).toContain('Payment was cancelled.');
+    expect(await page.getByText('Payment was cancelled.', { exact: true }).count()).toBe(1);
+    expect(await page.locator('#panel > div').first().locator('.notice').textContent()).toBe('Payment was cancelled.');
     expect(await page.locator('.total').innerText()).toBe('$123.45 of $600.00');
     expect(await page.locator('.step').nth(3).innerText()).toContain('$476.55 left');
     for (const style of STYLES) expect(await page.getByTestId(`style-${style.id}`).count()).toBe(1);
@@ -49,12 +54,12 @@ it('renders page hooks, keyboard actions, server totals, returns, readiness and 
     expect(await page.locator('.alternate .amber').allTextContents()).toEqual(SLOTS.map(() => 'Fit unverified'));
     for (const id of ['search-live', 'use-recorded', 'budget', 'receipt', 'judges', 'mode-label']) expect(await page.getByTestId(id).count()).toBe(1);
     for (const mode of ['plan', 'walk', 'overview']) { const button = page.getByTestId(`mode-${mode}`); await button.focus(); await page.keyboard.press('Space'); expect(await button.getAttribute('aria-pressed')).toBe('true'); expect(await button.getAttribute('aria-label')).toContain('view'); }
-    await page.getByTestId('mode-plan').click(); await page.waitForTimeout(650);
+    await page.getByTestId('mode-plan').click(); expect(await page.locator('.room-caption').isVisible()).toBe(false); await page.waitForTimeout(650);
     const deskBox = (await page.locator('[data-object-id="desk"]').boundingBox())!;
     await page.touchscreen.tap(deskBox.x+deskBox.width/2,deskBox.y+deskBox.height/2);
     await page.locator('[data-object-id="desk"]').focus();
     await page.waitForTimeout(50); expect(await page.locator('#object-label').isVisible()).toBe(true); expect(await page.locator('#object-label').innerText()).toContain('Locked');
-    await page.getByTestId('mode-overview').click();
+    await page.getByTestId('mode-overview').click(); expect(await page.locator('.room-caption').isVisible()).toBe(true);
     await page.getByTestId(`style-${STYLES[1].id}`).focus(); await page.keyboard.press('Enter'); await page.waitForFunction('window.__roomweftReady === true'); expect(await page.getByTestId(`style-${STYLES[1].id}`).getAttribute('aria-pressed')).toBe('true');
     expect(await page.getByTestId(`style-${STYLES[1].id}`).evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
     await page.keyboard.press('Tab'); expect(await page.getByTestId(`style-${STYLES[2].id}`).evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
@@ -78,11 +83,14 @@ it('renders page hooks, keyboard actions, server totals, returns, readiness and 
     const checkBounds = async ():Promise<void> => {
       const bounds = (await floor.boundingBox())!; expect(bounds.height).toBeGreaterThan(100); const box = (await shelf.boundingBox())!;
       const canvas = (await page.locator('#room canvas').boundingBox())!;
-      const half = Math.max(215,210/(canvas.width/canvas.height));
-      expect(bounds.width).toBeCloseTo(380/(2*half*canvas.width/canvas.height)*canvas.width,1);
-      expect(bounds.height).toBeCloseTo(320/(2*half)*canvas.height,1);
+      const modes = (await page.locator('.view-modes').boundingBox())!;
+      const tools = (await page.locator('.plan-tools').boundingBox())!;
+      const free = { width: canvas.width - 16, top: modes.y + modes.height + 8, bottom: tools.y - 8 };
+      const scale = Math.min(free.width / 388, (free.bottom - free.top) / 328);
+      expect(bounds.width).toBeCloseTo(380 * scale,1);
+      expect(bounds.height).toBeCloseTo(320 * scale,1);
       expect(bounds.x+bounds.width/2).toBeCloseTo(canvas.x+canvas.width/2,1);
-      expect(bounds.y+bounds.height/2).toBeCloseTo(canvas.y+canvas.height/2,1);
+      expect(bounds.y+bounds.height/2).toBeCloseTo((free.top+free.bottom)/2,1);
       expect(box.x-bounds.x).toBeCloseTo(5/380*bounds.width,1);
       expect(box.y-bounds.y).toBeCloseTo(100/320*bounds.height,1);
       expect(box.width).toBeCloseTo(30/380*bounds.width,1);
@@ -102,10 +110,12 @@ it('renders page hooks, keyboard actions, server totals, returns, readiness and 
     expect(await page.locator('[role="alert"]').innerText()).toContain('The desk is locked. Unlock it first.');
     await page.getByTestId('mode-overview').click(); expect(await floor.isVisible()).toBe(false);
     await page.getByTestId('freeze-quote').click(); await page.getByTestId('pay').waitFor();
-    await page.setViewportSize({ width: 599, height: 800 }); expect(await page.locator('.room-caption').isVisible()).toBe(false);
+    await page.setViewportSize({ width: 599, height: 800 }); expect(await page.locator('.room-caption').isVisible()).toBe(true);
     await page.setViewportSize({ width: 600, height: 800 }); expect(await page.locator('.room-caption').isVisible()).toBe(true);
+    await page.getByTestId('mode-walk').click(); expect(await page.locator('.room-caption').isVisible()).toBe(false);
+    await page.getByTestId('mode-plan').click(); expect(await page.locator('.room-caption').isVisible()).toBe(false);
     await page.goto('http://room.test/?receipt=q-one'); await page.getByTestId('refund-reading-chair').waitFor();
-    expect(new URL(page.url()).search).toBe(''); expect(await page.getByTestId('receipt').evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
+    expect(new URL(page.url()).search).toBe('?receipt=q-one'); expect(await page.getByTestId('receipt').evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
     expect(await page.getByTestId('receipt').innerText()).toContain('Capture test-capture');
     design.fit.doorSwing=['reading-chair'];
     design.fit.passes=false;

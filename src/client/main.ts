@@ -8,7 +8,7 @@ import { threads } from './thread';
 import { approvalUrl, checkoutAllowed, paymentLocked, restoredDesign } from './helpers';
 import type { DesignView, ReceiptView } from '../shared/api-types';
 import { STYLES } from '../shared/room';
-import { checkoutReturn } from './return-state';
+import { checkoutReturn, returnNotice } from './return-state';
 
 window.__roomweftReady = false;
 const returned = checkoutReturn(location.href);
@@ -24,6 +24,12 @@ document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button => bu
 document.querySelector('#rotate')?.addEventListener('click', () => control?.rotate());
 control?.mode('Overview');
 function accept(design: DesignView): void { store.set({ design, style: design.style, budget: design.budgetCents, owned: design.owned, notice: design.swapNote ?? design.message ?? '' }); }
+function clearReceiptUrl(): void {
+  const url = new URL(location.href);
+  if (!url.searchParams.has('receipt')) return;
+  url.searchParams.delete('receipt');
+  history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
 async function run(action: () => Promise<void>): Promise<void> {
   if (store.get().busy) return; view?.loading(); store.set({ busy: true, error: '', notice: '' });
   try { await action(); } catch (error) {
@@ -35,6 +41,8 @@ async function refreshReceipt(quoteId?: string): Promise<void> {
   const state = store.get();
   const id = quoteId ?? (paymentLocked(state.quote) ? state.quote?.id : state.receipt?.quote.id) ?? state.quote?.id ?? new URLSearchParams(location.search).get('receipt'); if (!id) return;
   const receipt = await api.receipt(id); store.set({ receipt, quote: receipt.quote });
+  const url = new URL(location.href);
+  if (!url.searchParams.has('receipt')) { url.searchParams.set('receipt', id); history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`); }
   if (!paymentLocked(receipt.quote)) { try { sessionStorage.removeItem('roomweft-pending-quote'); } catch { /* Browser storage is optional. */ } }
 }
 async function boot(): Promise<void> {
@@ -49,11 +57,12 @@ async function boot(): Promise<void> {
     if (saved) accept(saved);
     else if (result[1].status === 'fulfilled') accept(result[1].value);
     else if (!receiptId) throw result[1].reason;
-    if (receiptId) { await refreshReceipt(receiptId); if (!saved) store.set({ notice: 'Your receipt is loaded. The saved room was unavailable in this browser.' }); document.querySelector<HTMLElement>('#receipt')?.focus(); document.querySelector('#receipt')?.scrollIntoView({ block: 'start' }); }
+    if (receiptId) { await refreshReceipt(receiptId); if (!saved) store.set({ notice: 'Your receipt is loaded. The saved room was unavailable in this browser.' }); if (!returned.message) { document.querySelector<HTMLElement>('#receipt')?.focus(); document.querySelector('#receipt')?.scrollIntoView({ block: 'start' }); } }
+    store.set({ notice: returnNotice(returned.message, store.get().notice) });
   });
 }
 const actions: Actions = {
-  retry: () => { void boot(); }, style: style => { store.set({ style, budget: (STYLES.find(s => s.id === style) ?? STYLES[0]).defaultBudget * 100 }); actions.design(false); }, budget: budget => { store.set({ budget }); actions.design(false); },
+  retry: () => { void boot(); }, style: style => { clearReceiptUrl(); store.set({ style, budget: (STYLES.find(s => s.id === style) ?? STYLES[0]).defaultBudget * 100 }); actions.design(false); }, budget: budget => { store.set({ budget }); actions.design(false); },
   lock: id => { void run(async () => {
     const state = store.get(); const selected = state.owned.find(item => item.id === id); if (!selected) return;
     const owned = state.owned.map(item => item.id === id || (id === 'desk' && item.id === 'desk-chair') || (id === 'desk-chair' && item.id === 'desk') ? { ...item, locked: !selected.locked } : item);
@@ -61,7 +70,7 @@ const actions: Actions = {
   }); },
   design: live => { void run(async () => { const state = store.get(); accept(await api.design(state.style, state.budget, state.owned, live)); try { store.set({ status: await api.status() }); } catch { /* A failed status refresh leaves the design usable. */ } }); },
   swap: (slot, productId) => { void run(async () => { const design = store.get().design; if (design) accept(await api.swap(design.id, slot, productId)); }); },
-  quote: () => { void run(async () => { const design = store.get().design; if (design) store.set({ quote: await api.quote(design) }); }); },
+  quote: () => { void run(async () => { const design = store.get().design; if (design) { clearReceiptUrl(); store.set({ quote: await api.quote(design) }); } }); },
   checkout: () => { void run(async () => {
     const { quote, design } = store.get(); if (!quote || !design || !checkoutAllowed(quote, design)) throw new Error('Freeze a current quote before paying.');
     try {
@@ -80,7 +89,7 @@ const actions: Actions = {
     const receipt = store.get().receipt;
     if (receipt && !receipt.recorded) {
       store.set({ receipt: { ...receipt, lines: receipt.lines.map(line => line.lineId === lineId ? { ...line, refund: { state: 'unknown', amountCents: line.priceCents, paypalId: null } } : line) } });
-      const next = await api.refund(receipt.quote.id, lineId); store.set({ receipt: next, quote: next.quote });
+      await api.refund(receipt.quote.id, lineId); await refreshReceipt(receipt.quote.id);
     }
   }); },
   refreshReceipt: () => { void run(refreshReceipt); },

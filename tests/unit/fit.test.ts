@@ -58,6 +58,24 @@ describe("fit", () => {
     expect(result.walkway.targets.find(target => target.id === reading.id)?.reachable).toBe(false);
     expect(result.passes).toBe(false);
   });
+  it("reaches the desk chair from its front corners around the side table", () => {
+    const reading = item({
+      id: "reading-chair", kind: "chair", w: 63.5, d: 68.6,
+      ...placeAtAnchor(SLOTS[0], { w: 63.5, d: 68.6, h: 80 }, []),
+    });
+    const table = item({ id: "side-table", x: 353.15, z: 96.35, w: 45.7, d: 45.7 });
+    const result = fit([...owned(), reading, table]);
+    expect(result.walkway.targets.find(target => target.id === "desk-chair")?.reachable).toBe(true);
+  });
+  it("fails when furniture closes the desk chair front and both front corners", () => {
+    const blockers = [
+      item({ id: "front-left", x: 263, z: 155, w: 40, d: 20 }),
+      item({ id: "front-centre", x: 312, z: 155, w: 40, d: 20 }),
+      item({ id: "front-right", x: 361, z: 155, w: 35, d: 20 }),
+    ];
+    const target = fit([...owned(), ...blockers]).walkway.targets.find(entry => entry.id === "desk-chair");
+    expect(target?.reachable).toBe(false);
+  });
   it("finds pinch cells when the bookshelf blocks the route", () => {
     const layout = owned().map(entry => entry.id === "bookshelf" ? { ...entry, x: 250, z: 85, rot: 0 as const } : entry);
     const result = fit(layout);

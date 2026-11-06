@@ -4,6 +4,7 @@ import type { Placement } from '../shared/api-types';
 import { DOOR, ROOM, WINDOW } from '../shared/room';
 import { collides, layoutOf, rotate, snap } from './helpers';
 import type { RoomScene, Mode } from './scene';
+import { walkStart } from './walk-start';
 
 export function controls(view: RoomScene, move: (id: string, placement: Placement) => Promise<void>, select: (id: string | null) => void): { mode: (mode: Mode) => void; rotate: () => void; destroy: () => void } {
   const canvas = view.renderer.domElement; const keys = new Set<string>(); const events = new AbortController(); const signal = events.signal;
@@ -14,6 +15,9 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
     const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.addEventListener('click', () => { const item = view.layout.find(item => item.id === selection); if (item && !item.locked) void move(item.id, { x: snap(item.x + x), z: snap(item.z + z), rot: item.rot }); }, { signal }); planTools.append(button);
   }
   view.host.append(planTools);
+  const framingObserver = new ResizeObserver(() => { view.resize(); syncOverlay(); });
+  framingObserver.observe(planTools);
+  const modes = view.host.querySelector('.view-modes'); if (modes) framingObserver.observe(modes);
   const overlay = document.createElement('div'); overlay.dataset.testid = 'plan-floor'; overlay.hidden = true;
   overlay.style.cssText = 'position:absolute;pointer-events:none;'; view.host.append(overlay);
   const targets = new Map<string, HTMLButtonElement>();
@@ -132,9 +136,19 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
     if (!collides({ x: position.x, z: position.z + dz }, view.layout)) position.z += dz;
   };
   function setMode(mode: Mode): void {
+    if (mode === 'Walk') {
+      const start = walkStart(view.layout);
+      if (!start) {
+        const hint = document.querySelector('#view-hint'); if (hint) hint.textContent = 'Make room to start walking.';
+        return;
+      }
+      view.walk.position.set(start.x, 160, start.z);
+      view.walk.lookAt(ROOM.width / 2, 95, ROOM.depth / 2);
+      yaw = view.walk.rotation.y; pitch = view.walk.rotation.x;
+    }
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     keys.clear(); touches.clear(); if (drag) { view.layout = drag.original; drag = null; preview(); }
-    flushKeys(); view.setMode(mode); syncOverlay();
+    flushKeys(); view.setMode(mode);
     const rotateButton = document.querySelector<HTMLButtonElement>('#rotate'); if (rotateButton) rotateButton.disabled = mode !== 'Plan';
     const caption = document.querySelector<HTMLElement>('.room-caption'); if (caption) caption.hidden = mode !== 'Overview';
     planTools.hidden = mode !== 'Plan';
@@ -142,11 +156,9 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
       picker.replaceChildren(new Option('Select an item', ''), ...view.layout.filter(item => !item.locked).map(item => new Option(item.label, item.id)));
       picker.value = selection ?? '';
     }
-    if (mode === 'Walk' && collides({ x: view.walk.position.x, z: view.walk.position.z }, view.layout)) {
-      outer: for (let z = 45; z < ROOM.depth - 25; z += 10) for (let x = 40; x < ROOM.width - 25; x += 10) if (!collides({ x, z }, view.layout)) { view.walk.position.set(x, 160, z); break outer; }
-    }
+    view.resize(); syncOverlay();
     document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode === mode)));
     const hint = document.querySelector('#view-hint'); if (hint) hint.textContent = mode === 'Plan' ? 'Drag an unlocked item. R rotates it. Changes are checked by the server.' : mode === 'Walk' ? 'Click to look. W A S D or arrows to walk. Escape leaves. On touch, left moves and right looks.' : 'Your room, woven around what you own. Drag to orbit.';
   }
-  return { mode: setMode, rotate: turn, destroy: () => { clearTimeout(keyTimer); events.abort(); overlay.remove(); planTools.remove(); view.onFrame = null; if (document.pointerLockElement === canvas) document.exitPointerLock(); } };
+  return { mode: setMode, rotate: turn, destroy: () => { clearTimeout(keyTimer); framingObserver.disconnect(); events.abort(); overlay.remove(); planTools.remove(); view.onFrame = null; if (document.pointerLockElement === canvas) document.exitPointerLock(); } };
 }

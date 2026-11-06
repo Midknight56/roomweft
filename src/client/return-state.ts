@@ -1,5 +1,9 @@
 declare global { interface Window { __roomweftReady: boolean } }
 
+export function returnNotice(checkoutMessage: string, roomNotice: string): string {
+  return checkoutMessage || roomNotice;
+}
+
 export function checkoutReturn(href: string): { receiptId: string | null; message: string; cleanUrl: string; present: boolean } {
   const url = new URL(href);
   const receiptId = url.searchParams.get('receipt');
@@ -7,7 +11,7 @@ export function checkoutReturn(href: string): { receiptId: string | null; messag
   const defaults: Record<string, string> = { cancelled: 'Payment was cancelled.', declined: 'Payment was declined.', stale: 'The design changed. Freeze a new quote.', changed: 'The design changed. Freeze a new quote.' };
   const message = checkout ? url.searchParams.get('message') || defaults[checkout] || 'Please review your basket before paying.' : '';
   const present = ['receipt', 'checkout', 'message'].some(key => url.searchParams.has(key));
-  for (const key of ['receipt', 'checkout', 'message']) url.searchParams.delete(key);
+  for (const key of ['checkout', 'message']) url.searchParams.delete(key);
   return { receiptId, message, cleanUrl: `${url.pathname}${url.search}${url.hash}`, present };
 }
 

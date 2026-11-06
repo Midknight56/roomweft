@@ -9,17 +9,33 @@ export function roomDoor(trim: THREE.Material): THREE.Group {
   // The jambs sit outside the clear opening.
   box(4, 209, 8, 218, 104.5, 0); box(4, 209, 8, 302, 104.5, 0); box(88, 4, 8, 260, 207, 0);
   const hinge = new THREE.Group(); hinge.name = 'door-hinge'; hinge.position.set(doorSpec.x, 0, doorSpec.z); hinge.rotation.y = -THREE.MathUtils.degToRad(doorSpec.angle); root.add(hinge);
-  const leaf = box(doorSpec.width, doorSpec.height, doorSpec.thickness, 40, 102.5, 0, hinge); leaf.name = 'door-leaf';
+  const leafMaterial = trim.clone(); leafMaterial.transparent = true; leafMaterial.opacity = .35; leafMaterial.depthWrite = false;
+  const leaf = box(doorSpec.width, doorSpec.height, doorSpec.thickness, 40, 102.5, 0, hinge, leafMaterial); leaf.name = 'door-leaf';
   const brass = new THREE.MeshStandardMaterial({ color: '#B08D45', metalness: .75, roughness: .28 });
   for (const side of [-1, 1]) { box(3, 7, 1, 72, 100, side * 2.5, hinge, brass); box(9, 2, 2, 69, 101, side * 4, hinge, brass); }
   return root;
 }
 
-export function doorArc(colour: string): THREE.Line {
+export function setDoorMode(root: THREE.Object3D, mode: 'Overview' | 'Plan' | 'Walk'): void {
+  const leaf = root.getObjectByName('door-leaf');
+  if (!(leaf instanceof THREE.Mesh)) return;
+  const material = leaf.material;
+  if (Array.isArray(material)) return;
+  material.transparent = mode !== 'Walk'; material.opacity = mode === 'Walk' ? 1 : .35; material.depthWrite = mode === 'Walk'; material.needsUpdate = true;
+}
+
+export function doorArc(colour: string, warning: boolean): THREE.Group {
+  const root = new THREE.Group();
+  if (warning) {
+    const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(doorSpec.width, 0);
+    shape.absarc(0, 0, doorSpec.width, 0, THREE.MathUtils.degToRad(doorSpec.angle), false); shape.lineTo(0, 0);
+    const disc = new THREE.Mesh(new THREE.ShapeGeometry(shape, 32), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false }));
+    disc.rotation.x = Math.PI / 2; disc.position.set(doorSpec.x, 1, doorSpec.z); disc.name = 'door-swing-warning'; root.add(disc);
+  }
   const points = Array.from({ length: 49 }, (_, n) => {
     const angle = n / 48 * THREE.MathUtils.degToRad(doorSpec.angle);
     return new THREE.Vector3(doorSpec.x + Math.cos(angle) * doorSpec.width, 1, Math.sin(angle) * doorSpec.width);
   });
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: colour, dashSize: 4, gapSize: 3, transparent: true, opacity: .65 }));
-  line.computeLineDistances(); return line;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: colour, dashSize: 4, gapSize: 3, transparent: true, opacity: warning ? .65 : .22 }));
+  line.name = 'door-swing-outline'; line.computeLineDistances(); root.add(line); return root;
 }

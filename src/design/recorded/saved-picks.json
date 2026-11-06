@@ -3,90 +3,90 @@
     "picks": [
       {
         "slot": "reading-chair",
-        "id": "7at5qI1",
-        "reason": "Mid-Century Linen Accent Chair with grey, black, white colour scheme and metal frame",
+        "id": "yCiYFHo",
+        "reason": "Grey linen chair complements light wood tones and quiet color palette.",
         "by": "ai"
       },
       {
         "slot": "floor-lamp",
-        "id": "MNWyAeq",
-        "reason": "Under the $180 share for this piece. Closest colours to the style.",
-        "by": "rules"
+        "id": "KL4vAFo",
+        "reason": "Grey metal floor lamp adds subtle contrast to calm studio.",
+        "by": "ai"
       },
       {
         "slot": "side-table",
         "id": "Q6oiUrl",
-        "reason": "Under the $135 share for this piece. Oak matches the style.",
-        "by": "rules"
+        "reason": "Warm oak side table provides neutral balance to minimalist design.",
+        "by": "ai"
       },
       {
         "slot": "rug",
-        "id": "YSzwVyg",
-        "reason": "Under the $225 share for this piece. Cotton and jute match the style.",
-        "by": "rules"
+        "id": "6oGLE2o",
+        "reason": "Neutral jute rug ties space together without clashing colors.",
+        "by": "ai"
       }
     ],
-    "neurons": 7.186074999999846,
-    "at": "2026-11-06T21:59:20.980Z"
+    "neurons": 2.9917168617248535,
+    "at": "2026-11-06T22:35:29.965Z"
   },
   "night-desk": {
     "picks": [
       {
         "slot": "reading-chair",
-        "id": "mlwyIgE",
-        "reason": "Grey, grey, grey polyester upholstery provides a soothing atmosphere.",
-        "by": "ai"
+        "id": "Fgm5hZa",
+        "reason": "Under the $320 share for this piece. Closest colours to the style.",
+        "by": "rules"
       },
       {
         "slot": "floor-lamp",
         "id": "3qJV67N",
-        "reason": "Grey, warm red, white iron and metal combination creates a cozy ambiance.",
+        "reason": "Zinnia lamp's brass and warm red tones complement deep colours.",
         "by": "ai"
       },
       {
         "slot": "side-table",
-        "id": "UFpSgOI",
-        "reason": "Black, white, grey solid wood and pine wood combination adds a touch of elegance.",
+        "id": "yBmsuha",
+        "reason": "Storage Side Table's black, white, and grey palette matches the style.",
         "by": "ai"
       },
       {
         "slot": "rug",
-        "id": "FK7XzzN",
-        "reason": "Grey, blue, grey polypropylene colours complement the night desk's deep colours.",
+        "id": "Iptjl1f",
+        "reason": "Nourison rug's blue and grey hues enhance the evening ambience.",
         "by": "ai"
       }
     ],
-    "neurons": 9.176850000000059,
-    "at": "2026-11-06T21:59:28.380Z"
+    "neurons": 2.824968099594116,
+    "at": "2026-11-06T22:35:34.767Z"
   },
   "warm-reading": {
     "picks": [
       {
         "slot": "reading-chair",
-        "id": "odVFnbf",
-        "reason": "Soft flannel and warm wood create a cozy reading atmosphere.",
+        "id": "K2AqJmX",
+        "reason": "flannel fabric and warm brown wood create a cozy reading atmosphere.",
         "by": "ai"
       },
       {
         "slot": "floor-lamp",
-        "id": "7D6R1cm",
-        "reason": "Warm red hues evoke a sense of comfort and relaxation.",
+        "id": "4Hq4TrU",
+        "reason": "antique bronze finish complements warm wood tones.",
         "by": "ai"
       },
       {
         "slot": "side-table",
-        "id": "C5YyOuA",
-        "reason": "Warm red tones add a pop of color to the room, creating a cozy ambiance.",
+        "id": "MVm5tuw",
+        "reason": "wooden construction and grey finish harmonize with reading chair.",
         "by": "ai"
       },
       {
         "slot": "rug",
-        "id": "OroIoIz",
-        "reason": "Warm brown hues bring a sense of warmth and comfort to the room.",
+        "id": "DKufoo5",
+        "reason": "soft faux wool adds comfort and warmth to the space.",
         "by": "ai"
       }
     ],
-    "neurons": 9.653475000000071,
-    "at": "2026-11-06T21:59:13.959Z"
+    "neurons": 2.7628090381622314,
+    "at": "2026-11-06T22:35:26.096Z"
   }
 }

@@ -1,11 +1,13 @@
-// RoomWeft's share: 1,200 neurons a day (12% of the free 10,000). Every hackathon app writes to this ledger and the
-// whole account stops at 9,500, under the free 10,000 a day; the account is on the Workers Free plan, which has no
-// paid overage. A call is capped at 3,000 input and 400 output tokens: 3,000 x 4,625 / 1e6 + 400 x 30,475 / 1e6 =
-// 26.1 neurons, so 45 held before each call covers it. 1,200 / 45 = 26 live designs a day at most. Total paid cost: $0.
+// Source read 2026-11-06: https://developers.cloudflare.com/workers-ai/platform/pricing/
+// Granite: 1542 neurons per M input tokens, 10158 per M output tokens. $0.011 per 1,000 Neurons;
+// 10,000 Neurons per day at no charge. The 10,500 character prompt cap is about 3,000 input tokens.
+// 3,000 x 1542 / 1e6 + 400 x 10158 / 1e6 = 4.626 + 4.0632 = 8.6892 neurons, below the 10 neuron hold.
+// The app's 1,200/day covers at least 138 worst case call costs; the hold can stop calls earlier near the cap.
+// Every hackathon app shares this ledger. The 9,500 account cap is under the free 10,000, so calls cost $0.
 export const APP = 'roomweft';
 export const DAILY_NEURONS = 1200;
 export const ACCOUNT_NEURONS = 9500;
-export const RESERVE = 45;
+export const RESERVE = 10;
 export class NeuronLedger {
   constructor(private db: D1Database, private now: () => number = Date.now) {}
   async reserve(): Promise<number | null> {

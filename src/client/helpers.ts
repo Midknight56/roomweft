@@ -7,6 +7,7 @@ export const snap = (value: number): number => Math.round(value / 5) * 5;
 export const rotate = (value: Rotation): Rotation => ((value + 90) % 360) as Rotation;
 export const money = (cents: number): string => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 export const budgetText = (total: number, budget: number): string => total > budget ? `${money(total - budget)} over budget` : `${money(budget - total)} left in your budget`;
+export const unverifiedItemsText = (count: number): string => `${count} ${count === 1 ? 'item' : 'items'} with fit unverified`;
 export function fitBadge(fit: FitReport, id: string): { text: string; tone: 'alarm' | 'amber' | 'moss' } {
   if (fit.inside.includes(id)) return { text: 'Outside the wall margin', tone: 'alarm' };
   if (fit.doorSwing.includes(id)) return { text: 'Blocks the door swing', tone: 'alarm' };
@@ -41,6 +42,13 @@ export function projectPoint(ndc: { x: number; y: number; z: number }, rect: { l
 }
 export const slotLabel = (slot: SlotView['slot']): string => SLOTS.find(item => item.id === slot)?.label ?? slot;
 export const refundText = (state: RefundState): string => state === 'unknown' ? 'Checking refund' : `Refund ${state === 'requesting' ? 'pending' : state}`;
+export function receiptStateText(state: QuoteView['state'], recorded = false): string {
+  if (recorded) return 'Recorded sale, not paid';
+  if (state === 'paid') return 'Paid in the PayPal sandbox';
+  if (state === 'capturing' || state === 'capture_unknown') return 'Payment pending';
+  if (state === 'declined') return 'Payment declined';
+  return 'Not paid';
+}
 export const quoteChanged = (quote: QuoteView, design: DesignView): boolean => quote.designId !== design.id || quote.designVersion !== design.version || quote.state === 'stale' || quote.state === 'superseded';
 export function paymentLocked(quote: QuoteView | null): boolean { return !!quote && ['ordering', 'approving', 'capturing', 'capture_unknown'].includes(quote.state); }
 export function checkoutAllowed(quote: QuoteView, design: DesignView): boolean { return !quoteChanged(quote, design) && design.fit.passes && design.slots.length === 4 && design.slots.every(slot => slot.pick) && ['open', 'approving'].includes(quote.state); }

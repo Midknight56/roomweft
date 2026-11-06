@@ -7,7 +7,9 @@
     "build:client": "esbuild src/client/main.ts --bundle --format=esm --target=es2022 --minify --sourcemap --outfile=public/app.js",
     "check": "tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "gate": "npm run check && npm run build:client && vitest run",
+    "check:model": "node tools/check-model.mjs",
+    "check:page": "npm run build:client && node src/client/verify.mjs",
+    "gate": "npm run check && npm run build:client && vitest run && npm run check:page",
     "dev": "npm run build:client && wrangler dev",
     "deploy": "npm run build:client && wrangler deploy"
   },

@@ -1,4 +1,4 @@
-import type { ApiError, DesignView, OwnedState, Placement, QuoteView, ReceiptView, StatusView } from '../shared/api-types';
+import type { ApiError, DesignView, OwnedState, Placement, QuoteView, ReceiptView, RefundView, StatusView } from '../shared/api-types';
 import type { SlotId } from '../shared/room';
 
 export class RequestError extends Error {
@@ -25,5 +25,5 @@ export const api = {
   quote: (design: DesignView): Promise<QuoteView> => request('/api/quote', { designId: design.id, version: design.version }),
   checkout: (quoteId: string): Promise<QuoteView> => request('/api/checkout', { quoteId }),
   receipt: (quoteId: string): Promise<ReceiptView> => request(`/api/receipt/${id(quoteId)}`),
-  refund: (quoteId: string, lineId: SlotId): Promise<ReceiptView> => request('/api/refund', { quoteId, lineId }),
+  refund: (quoteId: string, lineId: SlotId): Promise<RefundView> => request('/api/refund', { quoteId, lineId }),
 };

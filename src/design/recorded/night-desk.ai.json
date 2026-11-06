@@ -2,29 +2,29 @@
   "picks": [
     {
       "slot": "reading-chair",
-      "id": "mlwyIgE",
-      "reason": "Grey, grey, grey polyester upholstery provides a soothing atmosphere.",
-      "by": "ai"
+      "id": "Fgm5hZa",
+      "reason": "Under the $320 share for this piece. Closest colours to the style.",
+      "by": "rules"
     },
     {
       "slot": "floor-lamp",
       "id": "3qJV67N",
-      "reason": "Grey, warm red, white iron and metal combination creates a cozy ambiance.",
+      "reason": "Zinnia lamp's brass and warm red tones complement deep colours.",
       "by": "ai"
     },
     {
       "slot": "side-table",
-      "id": "UFpSgOI",
-      "reason": "Black, white, grey solid wood and pine wood combination adds a touch of elegance.",
+      "id": "yBmsuha",
+      "reason": "Storage Side Table's black, white, and grey palette matches the style.",
       "by": "ai"
     },
     {
       "slot": "rug",
-      "id": "FK7XzzN",
-      "reason": "Grey, blue, grey polypropylene colours complement the night desk's deep colours.",
+      "id": "Iptjl1f",
+      "reason": "Nourison rug's blue and grey hues enhance the evening ambience.",
       "by": "ai"
     }
   ],
-  "neurons": 9.176850000000059,
-  "at": "2026-11-06T21:59:28.380Z"
+  "neurons": 2.824968099594116,
+  "at": "2026-11-06T22:35:34.767Z"
 }

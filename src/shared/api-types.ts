@@ -102,6 +102,15 @@ export interface QuoteView {
 
 export type RefundState = "requesting" | "pending" | "completed" | "failed" | "unknown";
 
+export interface RefundView {
+  id: string;
+  quoteId: string;
+  lineId: string;
+  amountCents: number;
+  state: RefundState;
+  paypalId: string | null;
+}
+
 export interface ReceiptView {
   quote: QuoteView;
   orderId: string | null;

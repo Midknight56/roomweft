@@ -123,8 +123,8 @@ function checkWalkway(layout: readonly Footprint[], room: Room, door: Door): Fit
     const radius = direction.x === 0 ? (box.maxZ - box.minZ) / 2 : (box.maxX - box.minX) / 2;
     const target = { x: item.x + direction.x * (radius + 10), z: item.z + direction.z * (radius + 10) };
     const zoneCentre = { x: item.x + direction.x * (radius + 30), z: item.z + direction.z * (radius + 30) };
-    const halfWidth = direction.x === 0 ? (box.maxX - box.minX) / 2 : 30;
-    const halfDepth = direction.z === 0 ? (box.maxZ - box.minZ) / 2 : 30;
+    const halfWidth = direction.x === 0 ? (box.maxX - box.minX) / 2 + 30 : 30;
+    const halfDepth = direction.z === 0 ? (box.maxZ - box.minZ) / 2 + 30 : 30;
     const reachable = queue.some(index => {
       const p = pointAt(index);
       return p.x >= zoneCentre.x - halfWidth && p.x <= zoneCentre.x + halfWidth

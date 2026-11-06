@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { saveLiveRuns, saveLiveRunCli } from '../../tools/save-live-run.mjs';
 import { SLOTS, STYLES, OWNED_ITEMS } from '../../src/shared/room';
-import { recordedRuns } from '../../src/design/recorded';
+import { makeRecordedData } from './recorded-fixture';
+const {recordedRuns}=makeRecordedData();
 
 function fake(mode = 'live', mixed = false) {
   let remaining = 1000;
@@ -15,7 +16,7 @@ function fake(mode = 'live', mixed = false) {
     remaining -= 12;
     return Response.json({mode, slots:SLOTS.map((s,index) => {
       const record = recordedRuns[body.style].slots[s.id];
-      return { slot:s.id,pick:record.candidates[1] ?? record.candidates[0],by:'ai',reason:'Soft colours.',
+      return { slot:s.id,pick:record.candidates[1] ?? record.candidates[0],by:'ai',reason:'Soft colours bring a quiet warmth to this reading corner.',
         alternates: record.candidates.filter((_,i)=>i!==(record.candidates.length>1?1:0)).map(candidate=>({candidate})),
         source:{...record,origin:mixed && index===1?'recorded':'live'} };
     })});
@@ -34,7 +35,7 @@ describe('save live runs', () => {
         expect(capture).toEqual(recordedRuns[style.id]);
         const ai = JSON.parse(await readFile(join(root,`${style.id}.ai.json`),'utf8'));
         expect(ai).toEqual(saved[style.id]); expect(ai.neurons).toBe(12); expect(ai.at).toBe(new Date(100).toISOString());
-        expect(ai.picks).toHaveLength(4); expect(ai.picks[0]).toMatchObject({slot:'reading-chair',by:'ai',reason:'Soft colours.'});
+        expect(ai.picks).toHaveLength(4); expect(ai.picks[0]).toMatchObject({slot:'reading-chair',by:'ai',reason:'Soft colours bring a quiet warmth to this reading corner.'});
       }
       expect(fetcher.mock.calls.map(c=>new URL(String(c[0])).pathname)).toEqual(['/api/scenes',...STYLES.flatMap(()=>['/api/status','/api/design','/api/status'])]);
       const posts = fetcher.mock.calls.filter(c=>c[1]?.method==='POST');

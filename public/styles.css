@@ -31,7 +31,7 @@ button,a,summary,input{touch-action:manipulation}
 .room canvas{display:block;width:100%;height:100%;touch-action:none}
 .view-modes{position:absolute;z-index:3;left:16px;top:16px;display:flex;gap:12px;flex-wrap:wrap;right:16px}
 .view-modes button{font-size:12px;padding:9px 12px;box-shadow:0 2px 8px #1F2A440A}
-.room-caption{position:absolute;bottom:18px;left:22px;pointer-events:none;font:500 clamp(28px,3.3vw,44px)/1.1 Fraunces,Georgia,serif;text-shadow:0 1px 4px var(--paper)}
+.room-caption{position:absolute;top:20px;right:20px;pointer-events:none;font:500 clamp(17px,2vw,26px)/1.1 Fraunces,Georgia,serif;text-align:right;text-shadow:0 1px 4px var(--paper)}
 .room-caption em{color:var(--thread);font-weight:500}
 .view-hint{font-size:12px;margin:12px 0 8px;min-height:20px}
 .room-key{display:flex;gap:16px;flex-wrap:wrap;font-size:11px}
@@ -53,6 +53,15 @@ button,a,summary,input{touch-action:manipulation}
 label{display:block;font-size:14px;font-weight:600}
 input[type=range]{width:100%;accent-color:var(--thread);margin:16px 0 22px;cursor:pointer}
 .buttons{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.budget-row{display:flex;align-items:end;gap:12px;margin:4px 0 12px}
+.budget-control{flex:1;min-width:120px}
+.budget-control label{margin-bottom:6px}
+.budget-field{display:flex;align-items:center;min-height:42px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);overflow:hidden}
+.budget-prefix{padding-left:14px;font-size:16px}
+.budget-field input{width:100%;min-width:0;min-height:40px;padding:8px 10px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:16px;outline:0}
+.budget-field:focus-within{outline:3px solid var(--thread);outline-offset:4px}
+.design-actions{flex-wrap:nowrap;margin:0 0 2px}
+.design-actions button{white-space:nowrap}
 .buttons button:first-child,.step>button{background:var(--thread);color:var(--panel);border-color:var(--thread)}
 .step>button{margin:12px 12px 0 0}
 .pick{padding:16px;margin:16px 0;border:1px solid var(--line);background:var(--panel);border-radius:14px;display:flow-root;overflow-wrap:anywhere}
@@ -94,11 +103,14 @@ summary{cursor:pointer;padding:10px 0;min-height:42px}
 .layout{display:block}
 .view-column{position:relative;top:auto;height:auto;min-height:0;padding:16px}
 .room{height:46vh;min-height:300px}
-.view-modes{gap:12px;left:12px;right:12px;top:12px}
+.view-modes{gap:12px;left:16px;right:16px;top:16px}
 .view-modes button{font-size:11px;padding:8px 10px}
 .view-hint{font-size:11px}
 .room-key{gap:12px;font-size:10px}
 .panel{border-left:0;padding:16px}
+.budget-row{gap:12px}
+.budget-control{min-width:100px}
+.design-actions button{padding:10px 9px}
 .styles{gap:12px}
 .style-card{padding:8px}
 
@@ -125,4 +137,4 @@ input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;
 input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--thread);border:2px solid var(--panel)}
 
 
-@media(max-width:599px){.room-caption{display:none}}
+@media(max-width:599px){.room-caption{top:60px;right:12px;font-size:16px}.budget-row{align-items:stretch;flex-direction:column}.design-actions{width:100%}.design-actions button{flex:1}}

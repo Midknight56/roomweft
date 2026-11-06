@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approvalUrl, budgetText, checkoutAllowed, collides, fitBadge, layoutOf, money, paymentLocked, projectPoint, quoteChanged, refundText, restoredDesign, rotate, slotLabel, snap } from '../../src/client/helpers';
+import { approvalUrl, budgetText, checkoutAllowed, collides, fitBadge, layoutOf, money, paymentLocked, projectPoint, quoteChanged, receiptStateText, refundText, restoredDesign, rotate, slotLabel, snap } from '../../src/client/helpers';
 import type { DesignView, QuoteView } from '../../src/shared/api-types';
 import { checkFit } from '../../src/shared/fit';
 import type { Footprint, FitReport } from '../../src/shared/fit';
@@ -53,6 +53,7 @@ describe('budget and fit copy', () => {
 });
 describe('quote and payment guards', () => {
   it.each([['pending', 'Refund pending'], ['requesting', 'Refund pending'], ['completed', 'Refund completed'], ['failed', 'Refund failed'], ['unknown', 'Checking refund']] as const)('shows the %s refund state', (state, text) => { expect(refundText(state)).toBe(text); });
+  it.each([['paid', false, 'Paid in the PayPal sandbox'], ['capturing', false, 'Payment pending'], ['capture_unknown', false, 'Payment pending'], ['declined', false, 'Payment declined'], ['open', false, 'Not paid'], ['paid', true, 'Recorded sale, not paid']] as const)('labels receipt state %s recorded=%s', (state, recorded, text) => { expect(receiptStateText(state, recorded)).toBe(text); });
   it('restores the same room only for its own receipt', () => { const raw = JSON.stringify({ quoteId: 'quote-one', design: design() }); expect(restoredDesign(raw, 'quote-one')).toEqual(design()); expect(restoredDesign(raw, 'another')).toBeNull(); for (const value of [null, '{}', 'invalid', 'null', JSON.stringify({ quoteId: 'quote-one', design: {} })]) expect(restoredDesign(value, 'quote-one')).toBeNull(); });
   it('accepts only a current open quote with all four picks and passing fit', () => { expect(checkoutAllowed(quote(), design())).toBe(true); const value = design(); value.fit.passes = false; expect(checkoutAllowed(quote(), value)).toBe(false); value.fit.passes = true; value.slots[0].pick = null; expect(checkoutAllowed(quote(), value)).toBe(false); value.slots = []; expect(checkoutAllowed(quote(), value)).toBe(false); });
   it('invalidates a quote after a move, swap, or a new design', () => { expect(quoteChanged(quote(), design())).toBe(false); expect(quoteChanged(quote(), { ...design(), version: 3 })).toBe(true); expect(quoteChanged(quote(), { ...design(), id: 'another' })).toBe(true); });

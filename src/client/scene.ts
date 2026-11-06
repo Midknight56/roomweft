@@ -4,11 +4,12 @@ import type { DesignView, ReceiptView } from '../shared/api-types';
 import { footprintBounds, type FitReport, type Footprint } from '../shared/fit';
 import { ROOM, DOOR, STYLES, WINDOW } from '../shared/room';
 import { fitBadge, layoutOf, projectPoint } from './helpers';
-import { furniture, dispose, tag } from './meshes';
+import { furniture, dispose, tag, setTagMode } from './meshes';
 import { texture } from './textures';
 import { theme } from './theme';
-import { roomDoor, doorArc } from './door';
+import { roomDoor, doorArc, setDoorMode } from './door';
 import { FrameReadiness } from './return-state';
+import { planFrustum } from './plan-framing';
 
 export type Mode = 'Overview' | 'Plan' | 'Walk';
 export class RoomScene {
@@ -34,11 +35,11 @@ export class RoomScene {
     this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.tabIndex = 0; this.renderer.domElement.setAttribute('aria-label', 'Room view. Use Plan to move furniture or Walk to explore.'); host.prepend(this.renderer.domElement);
     this.scene.background = new THREE.Color(theme.paper); this.scene.add(this.shell, this.pieces, this.regions);
-    this.overview.position.set(670, 590, -460); this.overview.lookAt(190, 45, 160);
+    this.overview.position.set(560, 480, -290); this.overview.lookAt(190, 95, 160);
     this.plan.position.set(190, 850, 160); this.plan.up.set(0, 0, 1); this.plan.lookAt(190, 0, 160);
     this.walk.position.set(250, 160, 55); this.walk.rotation.order = 'YXZ'; this.walk.lookAt(190, 160, 260);
     this.active = this.overview;
-    this.orbit = new OrbitControls(this.overview, this.renderer.domElement); this.orbit.target.set(190, 45, 160); this.orbit.enableDamping = true; this.orbit.autoRotate = true; this.orbit.autoRotateSpeed = .35; this.orbit.maxPolarAngle = Math.PI / 2 - .03; this.orbit.minDistance = 330; this.orbit.maxDistance = 1300;
+    this.orbit = new OrbitControls(this.overview, this.renderer.domElement); this.orbit.target.set(190, 95, 160); this.orbit.enableDamping = true; this.orbit.autoRotate = true; this.orbit.autoRotateSpeed = .35; this.orbit.maxPolarAngle = Math.PI / 2 - .03; this.orbit.minDistance = 330; this.orbit.maxDistance = 1100;
     this.orbit.addEventListener('start', () => { this.orbit.autoRotate = false; });
     this.host.addEventListener('pointerdown', this.stopTurn);
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(host); this.resize(); this.room(STYLES[0]);
@@ -65,11 +66,19 @@ export class RoomScene {
     this.transition = { start: performance.now(), position: previous.position.clone(), quaternion: previous.quaternion.clone() };
     if (mode === 'Plan') { this.active = this.plan; this.transition = null; }
     this.shell.traverse(child => { if (child.userData.ceiling) child.visible = mode === 'Walk'; });
+    setDoorMode(this.shell, mode);
+    setTagMode(this.pieces, mode);
   }
   resize(): void {
     const width = this.host.clientWidth; const height = this.host.clientHeight;
     this.renderer.setSize(width, height); this.overview.aspect = this.walk.aspect = width / Math.max(height, 1); this.overview.updateProjectionMatrix(); this.walk.updateProjectionMatrix();
-    const aspect = width / Math.max(height, 1); const half = Math.max(215, 210 / aspect); this.plan.left = -half * aspect; this.plan.right = half * aspect; this.plan.top = half; this.plan.bottom = -half; this.plan.updateProjectionMatrix();
+    const host = this.host.getBoundingClientRect();
+    const modes = this.host.querySelector('.view-modes')?.getBoundingClientRect();
+    const tools = this.host.querySelector<HTMLElement>('.plan-tools');
+    const top = modes ? modes.bottom - host.top - this.host.clientTop + 8 : 8;
+    const bottom = tools && !tools.hidden ? tools.getBoundingClientRect().top - host.top - this.host.clientTop - 8 : height - 8;
+    Object.assign(this.plan, planFrustum(width, height, { left: 8, right: width - 8, top, bottom }));
+    this.plan.position.set(ROOM.width / 2, 850, ROOM.depth / 2); this.plan.lookAt(ROOM.width / 2, 0, ROOM.depth / 2); this.plan.updateProjectionMatrix();
   }
   room(style: typeof STYLES[number]): void {
     dispose(this.shell); this.shell.clear();
@@ -91,7 +100,7 @@ export class RoomScene {
     for (const x of [140, 200, 260]) addBox(4, 134, 8, x, 155, 319, trim);
     for (const y of [90, 220]) addBox(124, 4, 8, 200, y, 319, trim);
     addBox(220, 10, 4, 110, 5, -2, plaster); addBox(80, 10, 4, 340, 5, -2, plaster);
-    this.shell.add(roomDoor(trim));
+    const door = roomDoor(trim); setDoorMode(door, this.mode); this.shell.add(door);
     this.shell.add(new THREE.HemisphereLight('#FFF2D8', '#6B493B', style.light.kind === 'evening' ? .45 : 1.7));
     const sun = new THREE.DirectionalLight(style.light.colour, style.light.intensity * 2.3); sun.position.set(170, 330, 430); sun.target.position.set(190, 0, 130); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, far: 1200 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .6; this.shell.add(sun, sun.target);
     for (const [x, y, z] of [[310, 105, 285], [20, 150, 250]]) { const lamp = new THREE.PointLight('#FFCB8A', style.light.kind === 'evening' ? 15000 : 2500, 300, 2); lamp.position.set(x, y, z); this.shell.add(lamp); }
@@ -110,12 +119,13 @@ export class RoomScene {
       if (receipt?.plan.some(line => line.roomObjectId === item.id && line.status === 'returned')) { root.traverse(child => { if (child instanceof THREE.Mesh) { const material = (child.material as THREE.MeshStandardMaterial).clone(); material.transparent = true; material.opacity = .3; child.material = material; } }); const returned = tag('Returned', theme.thread); returned.position.y = item.h + 34; root.add(returned); root.userData.returned = true; }
       this.objects.set(item.id, root); this.pieces.add(root);
     }
+    setTagMode(this.pieces, this.mode);
     this.showFit(design.fit); this.highlight(this.selected);
     void Promise.all(models).then(() => this.readiness.loadedDesign(version));
   }
   showFit(fit: FitReport): void {
     dispose(this.regions); this.regions.clear();
-    this.regions.add(doorArc(fit.doorSwing.length ? theme.alarm : theme.amber));
+    this.regions.add(doorArc(fit.doorSwing.length ? theme.alarm : theme.amber, fit.doorSwing.length > 0));
     const cells = fit.walkway.pinch;
     if (cells.length) { const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: theme.alarm, transparent: true, opacity: .45, side: THREE.DoubleSide }), cells.length); const dummy = new THREE.Object3D(); cells.forEach((cell, index) => { dummy.position.set(cell.x, 1.5, cell.z); dummy.rotation.x = -Math.PI / 2; dummy.updateMatrix(); mesh.setMatrixAt(index, dummy.matrix); }); this.regions.add(mesh); }
     for (const item of this.layout) {

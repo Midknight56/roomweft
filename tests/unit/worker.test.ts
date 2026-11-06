@@ -5,6 +5,20 @@ import type { DesignView, QuoteLine, QuoteView, ReceiptView } from '../../src/sh
 import { asD1, freshD1, LEDGER_SQL, type FakeD1 } from './d1-fake';
 import { OWNED_ITEMS } from '../../src/shared/room';
 import { BODY_LIMIT, PRICE_MAX_AGE } from '../../src/limits';
+vi.mock('../../src/design/recorded',async()=>{
+  const {makeRecordedData,fixtureCandidate}=await import('./recorded-fixture');
+  const data=makeRecordedData();
+  for (const run of Object.values(data.recordedRuns)) {
+    for (const [id,slot] of Object.entries(run.slots)) {
+      slot.candidates=id==='reading-chair' ? [
+        {...fixtureCandidate('small'),dims:{w:58,d:58,h:90}},
+        {...fixtureCandidate('large'),dims:{w:90,d:100,h:90}},
+      ] : [];
+      slot.resultIds=slot.candidates.map(c=>c.id);
+    }
+  }
+  return data;
+});
 const visitor = 'a'.repeat(32), at = Date.UTC(2026, 10, 6, 12);
 const dbs: FakeD1[] = [];
 afterEach(() => { dbs.splice(0).forEach(db => db.sqlite.close()); vi.restoreAllMocks(); });
@@ -103,7 +117,7 @@ describe('worker routes', () => {
   });
   it('uses the exact AI threshold and fails closed on a broken ledger', async () => {
     const { call, s } = fixture(); const remaining = vi.spyOn(s.ledger, 'remaining');
-    for (const [value, live] of [[44, false], [45, true]] as const) {
+    for (const [value, live] of [[9, false], [10, true]] as const) {
       remaining.mockResolvedValue(value);
       expect(await (await call('/api/status')).json()).toHaveProperty('ai.live', live);
     }

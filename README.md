@@ -23,14 +23,18 @@ What is real and what is not:
 
 | Part | Real or simulated |
 | --- | --- |
-| Product search | Real Channel3 API calls. Saved searches from 6 Nov 2026 are used when a daily cap is reached, and the page says so |
+| Product search | Real Channel3 API calls. The page opens on one saved live run per style from 6 Nov 2026, labelled as recorded. "Search live" makes a new one (three a day per visitor). When a daily cap is spent, the page says so and uses the saved run |
 | Sizes | From the retailer listing through Channel3. A missing size is shown as "fit unverified", never guessed |
 | 3D furniture | Visual approximations scaled to the real size, not the exact product model |
 | Fit checks | Done in code: walls, overlaps, door swing, a 76 cm walkway, budget |
-| Model picks | Workers AI picks a candidate per slot for taste and writes a short reason. Code checks every pick |
+| Model picks | Workers AI Granite 4.0 H Micro picks a candidate per slot for taste and writes a short reason. Code checks every pick. Saved runs keep their recorded picks |
 | Payment | Real PayPal sandbox Orders v2 checkout, capture and refund against our sandbox merchant. Test money. No real furniture is sold or shipped. Retailer links are separate |
 
 ## How it works
+
+Live picks use `@cf/ibm-granite/granite-4.0-h-micro`, with one required JSON key per slot. Invalid picks fall back to
+rules and are labelled. Calls hold 10 neurons, then settle reported neurons or token usage at the model's rates.
+Run `npm run check:model` online to check the configured model page for deprecation. The gate stays offline.
 
 | Step | Code |
 | --- | --- |

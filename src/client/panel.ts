@@ -2,7 +2,7 @@ import type { State } from './state';
 import type { Candidate, DesignView, SlotView } from '../shared/api-types';
 import type { SlotId } from '../shared/room';
 import { STYLES, OWNED_ITEMS } from '../shared/room';
-import { budgetText, checkoutAllowed, fitBadge, money, paymentLocked, quoteChanged, refundText, slotLabel } from './helpers';
+import { budgetText, checkoutAllowed, fitBadge, money, paymentLocked, quoteChanged, receiptStateText, refundText, slotLabel, unverifiedItemsText } from './helpers';
 import { swatches } from './theme';
 
 export interface Actions {
@@ -71,7 +71,9 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     const card = button('', () => actions.style(option.id), state.busy || paymentLocked(state.quote)); card.className = 'style-card'; card.dataset.testid = `style-${option.id}`; card.setAttribute('aria-pressed', String(state.style === option.id));
     const strip = el('span', '', 'palette'); [option.palette.floor, option.palette.wall, option.palette.accent].forEach(colour => { const swatch = el('i'); swatch.style.background = colour; strip.append(swatch); }); card.append(strip, el('strong', option.label), el('small', option.blurb)); choices.append(card);
   }); style.append(choices);
-  const label = el('label', `Budget ${money(state.budget)}`); label.htmlFor = 'budget'; const slider = el('input'); slider.id = 'budget'; slider.dataset.testid = 'budget'; slider.type = 'number'; slider.min = '150'; slider.max = '3000'; slider.step = '1'; slider.value = String(state.budget / 100); slider.disabled = state.busy || paymentLocked(state.quote);
+  const budgetControl = el('div', '', 'budget-control');
+  const label = el('label', 'Budget'); label.htmlFor = 'budget'; const field = el('div', '', 'budget-field'); field.append(el('span', '$', 'budget-prefix'));
+  const slider = el('input'); slider.id = 'budget'; slider.dataset.testid = 'budget'; slider.type = 'number'; slider.min = '150'; slider.max = '3000'; slider.step = '1'; slider.value = String(state.budget / 100); slider.setAttribute('aria-label', 'Budget'); slider.disabled = state.busy || paymentLocked(state.quote); field.append(slider); budgetControl.append(label, field);
   let submitted = false;
   const submitBudget = (): void => {
     const cents = Number(slider.value) * 100;
@@ -80,13 +82,13 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
   };
   slider.addEventListener('blur', submitBudget);
   slider.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); submitBudget(); } });
-  style.append(label, slider);
-  const designButtons = el('div', '', 'buttons'); designButtons.append(button('Use recorded run', () => actions.design(false), state.busy || paymentLocked(state.quote), 'use-recorded'), button('Search live', () => actions.design(true), state.busy || paymentLocked(state.quote) || !state.status?.search.live || state.status.visitor.liveDesignsLeft === 0, 'search-live')); style.append(designButtons, el('small', `${state.status?.visitor.liveDesignsLeft ?? 0} live designs left today. Recorded runs are instant and free.`)); fragment.append(style);
+  const designButtons = el('div', '', 'buttons design-actions'); designButtons.append(button('Use recorded run', () => actions.design(false), state.busy || paymentLocked(state.quote), 'use-recorded'), button('Search live', () => actions.design(true), state.busy || paymentLocked(state.quote) || !state.status?.search.live || state.status.visitor.liveDesignsLeft === 0, 'search-live'));
+  const budgetRow = el('div', '', 'budget-row'); budgetRow.append(budgetControl, designButtons); style.append(budgetRow, el('small', `${state.status?.visitor.liveDesignsLeft ?? 0} live designs left today. Recorded runs are instant and free.`)); fragment.append(style);
   const picks = section(3, 'Picks'); if (state.design) state.design.slots.forEach((slot, index) => picks.append(pickCard(slot, state.design!, state, actions, index))); fragment.append(picks);
   const basket = section(4, 'Basket'); const design = state.design;
   if (design) {
     design.slots.forEach((slot, index) => { if (slot.pick) { const row = objectLine(slot.slot, index); row.append(el('span', slot.pick.title), el('strong', money(slot.pick.priceCents))); basket.append(row); } });
-    basket.append(el('p', `${money(design.totals.totalCents)} of ${money(design.totals.budgetCents)}`, 'total'), el('p', budgetText(design.totals.totalCents, design.totals.budgetCents), design.totals.overCents ? 'alarm' : 'moss'), el('p', `${design.totals.unverifiedCount} items with fit unverified`));
+    basket.append(el('p', `${money(design.totals.totalCents)} of ${money(design.totals.budgetCents)}`, 'total'), el('p', budgetText(design.totals.totalCents, design.totals.budgetCents), design.totals.overCents ? 'alarm' : 'moss'), el('p', unverifiedItemsText(design.totals.unverifiedCount)));
     const missing = design.slots.length !== 4 || design.slots.some(slot => !slot.pick); const blocked = !design.fit.passes || missing;
     if (blocked) basket.append(el('p', missing ? 'Fill every slot before checkout.' : 'Fix the red findings before checkout.', 'alarm'));
     for (const message of design.fit.messages) basket.append(el('small', message, 'fit-message'));
@@ -102,15 +104,17 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
       basket.append(button(quote ? 'Freeze a new quote' : 'Freeze quote', actions.quote, state.busy || blocked || paymentLocked(quote), 'freeze-quote'));
       if (quote && !changed) basket.append(el('p', `Frozen total ${money(quote.totalCents)}`), button('Pay with PayPal (sandbox)', actions.checkout, state.busy || blocked || !checkoutAllowed(quote, design) || !state.status?.sandbox.live, 'pay'));
     }
-  } if (state.checkoutMessage) basket.prepend(el('p', state.checkoutMessage, 'notice')); fragment.append(basket);
+  } if (state.checkoutMessage && state.checkoutMessage !== state.notice) basket.prepend(el('p', state.checkoutMessage, 'notice')); fragment.append(basket);
   const receipt = section(5, 'Receipt'); receipt.id = 'receipt'; receipt.dataset.testid = 'receipt'; receipt.tabIndex = -1; const sale = state.receipt;
   if (sale) {
     if (sale.recorded) receipt.append(el('h3', 'Recorded sale'), el('p', 'Recorded receipt, makes no payment', 'notice'));
     receipt.append(el('p', `Order ${sale.orderId ?? 'Not yet available'}`), el('p', `Capture ${sale.captureId ?? 'Not yet available'}`));
+    const receiptState = el('p', receiptStateText(sale.quote.state, sale.recorded), 'moss'); receiptState.dataset.testid = 'receipt-state'; receipt.append(receiptState);
     if (sale.amountMismatch) receipt.append(el('p', 'The payment amount needs review. Please check payment status.', 'alarm'));
     sale.lines.forEach((line, index) => {
       const row = objectLine(line.roomObjectId, index); row.classList.add('receipt-line'); row.append(el('span', line.title), el('strong', money(line.priceCents)));
       if (line.refund) row.append(el('small', refundText(line.refund.state), line.refund.state === 'completed' ? 'moss' : line.refund.state === 'failed' ? 'alarm' : 'amber'));
+      if (sale.plan.some(item => item.roomObjectId === line.roomObjectId && item.status === 'returned')) row.append(el('small', 'Returned', 'moss'));
       row.append(button('Refund this item', () => actions.refund(line.lineId), state.busy || sale.recorded === true || !sale.captureId || !!line.refund || sale.quote.state !== 'paid', `refund-${line.lineId}`)); receipt.append(row);
     });
     if (sale.plan.some(line => line.status === 'returned')) receipt.append(el('p', 'The room plan and the receipt now differ. Freeze a new quote to buy a replacement.', 'notice'));
@@ -125,5 +129,13 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
 export function renderStatus(root: HTMLElement, state: State): void {
   root.replaceChildren();
   for (const [key, label] of [['search', 'Live search'], ['ai', 'Live AI'], ['sandbox', 'Live sandbox']] as const) { const live = state.status?.[key].live; root.append(el('span', `${label}${live ? '' : ' off today'}`, `status-pill ${live ? 'on' : 'off'}`)); }
-  const design = state.design; const mode = document.querySelector('#mode-label'); if (mode) mode.textContent = design?.mode === 'recorded' ? `Recorded run, captured ${design.capturedAt ?? 'date unavailable'}` : design?.mode === 'rules' ? 'Picked by rules, no AI today' : design ? 'Live design' : 'Loading your room';
+  const design = state.design; const mode = document.querySelector('#mode-label'); if (mode) mode.textContent = design?.mode === 'recorded' ? `Recorded run from ${recordedDate(design.capturedAt)}` : design?.mode === 'rules' ? 'Picked by rules, no AI today' : design ? 'Live design' : 'Loading your room';
+}
+export function recordedDate(value?: string): string {
+  if (!value) return 'date unavailable';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'date unavailable';
+  const parts = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find(entry => entry.type === type)?.value ?? '';
+  return `${part('day')} ${part('month')} ${part('year')}`;
 }

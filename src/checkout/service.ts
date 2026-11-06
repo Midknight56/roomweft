@@ -1,4 +1,4 @@
-import type { Candidate, DesignView, QuoteLine, QuoteState, QuoteView, ReceiptView, RefundState, SlotView } from "../shared/api-types";
+import type { Candidate, DesignView, QuoteLine, QuoteState, QuoteView, ReceiptView, RefundState, RefundView, SlotView } from "../shared/api-types";
 import type { PayPalGateway, PayPalResource, PayPalResult } from "../paypal/client";
 
 export interface DesignSnapshot {
@@ -15,9 +15,6 @@ export type CheckoutResult<T> = { ok: true; value: T; code?: "already_started" }
 export interface RecheckedLine { lineId: QuoteLine["lineId"]; priceCents: number | null }
 export interface CheckoutOptions {
   recheck?: (lines: readonly QuoteLine[]) => Promise<readonly RecheckedLine[]>;
-}
-export interface RefundView {
-  id: string; quoteId: string; lineId: string; amountCents: number; state: RefundState; paypalId: string | null;
 }
 export interface CheckoutServiceOptions {
   db: D1Database;
