@@ -1,0 +1,25 @@
+{
+  "name": "roomweft",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build:client": "esbuild src/client/main.ts --bundle --format=esm --target=es2022 --minify --sourcemap --outfile=public/app.js",
+    "check": "tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "gate": "npm run check && npm run build:client && vitest run",
+    "dev": "npm run build:client && wrangler dev",
+    "deploy": "npm run build:client && wrangler deploy"
+  },
+  "dependencies": { "three": "^0.181.0" },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^5.20261104.1",
+    "esbuild": "^0.25.12",
+    "@types/three": "^0.181.0",
+    "@types/node": "^24.0.0",
+    "playwright": "^1.56.1"
+  }
+}

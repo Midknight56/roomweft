@@ -1,0 +1,1148 @@
+{
+  "style": "calm-studio",
+  "capturedAt": "2026-11-06T21:59:21.023Z",
+  "slots": {
+    "reading-chair": {
+      "query": "compact linen accent chair",
+      "maxPrice": 360,
+      "resultIds": [
+        "maLHfHZ",
+        "yCiYFHo",
+        "7at5qI1",
+        "4qzu5o8",
+        "wC2X3q1",
+        "vAOTrXQ",
+        "DYbUFwO",
+        "uDo8CHk"
+      ],
+      "retrievedAt": 1794002356404,
+      "candidates": [
+        {
+          "id": "maLHfHZ",
+          "title": "Accent Chair",
+          "brand": "Boyel Living",
+          "priceCents": 15124,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/maLHfHZ-FP7n-HE0Wiz?o=01KY4DGC68Q1H4V6H5H6339CK6&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/ddbbf8b2-8cec-4345-8991-471da3abe85b?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=FP7n",
+          "materials": [
+            "linen",
+            "rubber wood",
+            "sponge"
+          ],
+          "colors": [
+            "#767d80",
+            "#595f63",
+            "#212221"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 50.8,
+            "d": 69.9,
+            "h": 90.2
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 27.5,
+              "unit": "in"
+            },
+            "width": {
+              "number": 20,
+              "unit": "in"
+            },
+            "height": {
+              "number": 35.5,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "yCiYFHo",
+          "title": "Christopher Knight Home Smythe Modern Upholstered Linen Accent Chair",
+          "brand": "Christopher Knight Home",
+          "priceCents": 14699,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/yCiYFHo-FP7n-HE0Wiz?o=01KY61JJFZZ6EC8EM1H9W5FH49&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/97407230-81ca-4d27-b073-61e6a85a2545?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=FP7n",
+          "materials": [
+            "linen",
+            "pinewood"
+          ],
+          "colors": [
+            "#a29c88",
+            "#24221f",
+            "#554e45"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 69.9,
+            "d": 86.4,
+            "h": 71.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 34,
+              "unit": "in"
+            },
+            "width": {
+              "number": 27.5,
+              "unit": "in"
+            },
+            "height": {
+              "number": 28,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "7at5qI1",
+          "title": "Mid-Century Linen Accent Chair",
+          "brand": "Tommy Hilfiger",
+          "priceCents": 16999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/7at5qI1-p1PB-HE0Wiz?o=01KYTDHFSC50JJCPZ5PV2QVPQW&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/d0ba4cc1-4084-47b8-9c31-550ed1f7c304?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=p1PB",
+          "materials": [
+            "linen",
+            "metal"
+          ],
+          "colors": [
+            "#cdc7bc",
+            "#3b373a",
+            "#ebe8e5"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 71.1,
+            "d": 78,
+            "h": 81.3
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 30.7,
+              "unit": "in"
+            },
+            "width": {
+              "number": 28,
+              "unit": "in"
+            },
+            "height": {
+              "number": 32,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "4qzu5o8",
+          "title": "Side Chair with Solid Rubberwood Chair Legs",
+          "brand": "Boyel Living",
+          "priceCents": 26102,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/4qzu5o8-FP7n-HE0Wiz?o=01KY4P63J458XCYGDDJS6FWH4M&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/dc102ecb-74eb-43dc-93ad-861be056379f?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=FP7n",
+          "materials": [
+            "Linen",
+            "Solid Wood"
+          ],
+          "colors": [
+            "#beb5ad",
+            "#a0998e",
+            "#585552"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 77.5,
+            "d": 80.6,
+            "h": 90.8
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 31.75,
+              "unit": "in"
+            },
+            "width": {
+              "number": 30.5,
+              "unit": "in"
+            },
+            "height": {
+              "number": 35.75,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "wC2X3q1",
+          "title": "Linen Accent Chair",
+          "brand": "Costway",
+          "priceCents": 14299,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/wC2X3q1-p1PB-HE0Wiz?o=01KXZHE73ZN0VAB446KRHTYAQE&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/efa5eefe-a540-45c4-bd30-52a4014adca8?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=p1PB",
+          "materials": [
+            "Rubber Wood",
+            "Sponge",
+            "Linen Fabric"
+          ],
+          "colors": [
+            "#28608e",
+            "#5a3423",
+            "#e9eaeb"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 66,
+            "d": 67.3,
+            "h": 83.8
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 26.5,
+              "unit": "in"
+            },
+            "width": {
+              "number": 26,
+              "unit": "in"
+            },
+            "height": {
+              "number": 33,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "vAOTrXQ",
+          "title": "Mid Century Modern Chair, Upholstered Accent Chair with Wood Frame and Linen Fabric",
+          "brand": "GARVEE",
+          "priceCents": 22899,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/vAOTrXQ-Z87s-HE0Wiz?o=01M3Q94AEA4CD1XAJ5TZ9K4C3P&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "kohls.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/e0af559d-2a6a-4dfe-9d32-06038589e3d3?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=Z87s",
+          "materials": [
+            "wood",
+            "linen fabric",
+            "foam"
+          ],
+          "colors": [
+            "#181b1b"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 66,
+            "d": 71,
+            "h": 78
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 27.95,
+              "unit": "in"
+            },
+            "width": {
+              "number": 25.99,
+              "unit": "in"
+            },
+            "height": {
+              "number": 30.71,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 300,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "DYbUFwO",
+          "title": "Modern Farmhouse Easy Assembly Linen Accent Chair",
+          "brand": "Walker Edison",
+          "priceCents": 31987,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/DYbUFwO-BsaX-HE0Wiz?o=01M5T258JMHZ8CP90QDCWGKC39&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "walmart.com",
+          "image": "https://cdn.trychannel3.com/eec1bd2d-fa6b-4bd7-a10b-2424f0bc30bf?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=BsaX",
+          "materials": [
+            "linen-blend fabric",
+            "wood"
+          ],
+          "colors": [
+            "#cac0af",
+            "#906339",
+            "#ad7945"
+          ],
+          "category": "armchairs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "uDo8CHk",
+          "title": "Linen Accent Chair",
+          "brand": "GARVEE",
+          "priceCents": 14099,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/uDo8CHk-K6RA-HE0Wiz?o=01M1TZM0ENE9RQ3XCBMYS0GQKY&aid=01M6SDZ1TSK0VW1YMX0D7D9GPT",
+          "domain": "macys.com",
+          "image": "https://cdn.trychannel3.com/14bf4a96-7b96-4d92-a859-ea4c4867c6e9?aid=01M6SDZ1TSK0VW1YMX0D7D9GPT&mid=K6RA",
+          "materials": [
+            "linen",
+            "wood",
+            "rattan",
+            "foam"
+          ],
+          "colors": [
+            "#efeae3",
+            "#b0874f",
+            "#937148"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 63.5,
+            "d": 68.8,
+            "h": 81.3
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 27.1,
+              "unit": "in"
+            },
+            "width": {
+              "number": 25,
+              "unit": "in"
+            },
+            "height": {
+              "number": 32,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        }
+      ]
+    },
+    "floor-lamp": {
+      "query": "slim white floor lamp",
+      "maxPrice": 180,
+      "resultIds": [
+        "6HkkSc1",
+        "OOgSoVe",
+        "P2QPuSM",
+        "hRTeXKc",
+        "UIDbodo",
+        "KL4vAFo",
+        "MNWyAeq",
+        "gxyyaGP"
+      ],
+      "retrievedAt": 1794002358057,
+      "candidates": [
+        {
+          "id": "6HkkSc1",
+          "title": "Bicik Modern Slim Dimmable Torchiere Floor Lamp With Reading Side Light And Remote Control",
+          "brand": "BICIK",
+          "priceCents": 7123,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/6HkkSc1-FP7n-HE0Wiz?o=01KY5954X1MV49TE48VTPRX69P&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/12a98bb7-8ca2-46a9-ae77-c4b7a88406a9?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=FP7n",
+          "materials": [],
+          "colors": [],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "OOgSoVe",
+          "title": "Litespan Slim 55\" Led Floor Lamp",
+          "brand": "Brightech",
+          "priceCents": 6999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/OOgSoVe-Z87s-HE0Wiz?o=01KKFPZ8KZZAYNRTVC1CRT1WN4&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "kohls.com",
+          "image": "https://cdn.trychannel3.com/4f14ee23-debe-4a04-b5dc-692c7d3181e1?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=Z87s",
+          "materials": [
+            "Plastic",
+            "Metal (gooseneck and base)"
+          ],
+          "colors": [
+            "#fefefc",
+            "#d9d7d4"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 55,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "P2QPuSM",
+          "title": "Brightech Litespan Slim Industrial Dimmable Gooseneck Arc Floor Lamp",
+          "brand": "Brightech",
+          "priceCents": 6499,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/P2QPuSM-QnTm-HE0Wiz?o=01M60SXZ5K447EHY8JZCTCGEJ0&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "target.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/9d25166c-d559-4d77-bdfb-f4e2a8b7ed17?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=QnTm",
+          "materials": [],
+          "colors": [
+            "#f1f1f1"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "hRTeXKc",
+          "title": "Slim Contemporary Minimalist Floor Lamp",
+          "brand": "Jushua",
+          "priceCents": 13590,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/hRTeXKc-Qqxu-HE0Wiz?o=01M6HTKQFXPZQY7CEDGR9PNB0S&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/f991d0b2-37d5-43e0-903f-7568dc51325c?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=Qqxu",
+          "materials": [
+            "Marble",
+            "Imitation Leather"
+          ],
+          "colors": [
+            "#e2daca",
+            "#b5aea2",
+            "#412f20"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "UIDbodo",
+          "title": "Munk Floor Lamp",
+          "brand": "Zuo",
+          "priceCents": 15800,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/UIDbodo-Q1hs-HE0Wiz?o=01M3MWKDVCQKKK6H51MM46ADA3&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "lampsplus.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/ce9c37ab-90d4-4388-9766-f8fc66aaecce?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=Q1hs",
+          "materials": [
+            "metal"
+          ],
+          "colors": [
+            "#ffffff",
+            "#ded6d0"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": {
+              "number": 11.4,
+              "unit": "in"
+            },
+            "height": {
+              "number": 53.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 10.8,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "KL4vAFo",
+          "title": "Oslo Floor Lamp",
+          "brand": "Adesso",
+          "priceCents": 13799,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/KL4vAFo-vyVK-HE0Wiz?o=01M35R1K7SMSTK0453Q1KNR4FS&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "ashleyfurniture.com",
+          "image": "https://cdn.trychannel3.com/ed37f2e7-99f1-44b7-9e7c-ca340914929d?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=vyVK",
+          "materials": [
+            "Metal",
+            "Fabric",
+            "Japanese paper"
+          ],
+          "colors": [
+            "#cccac6"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 45.1,
+            "d": 45.1,
+            "h": 151.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 17.75,
+              "unit": "in"
+            },
+            "width": {
+              "number": 17.75,
+              "unit": "in"
+            },
+            "height": {
+              "number": 59.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 16.2,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "MNWyAeq",
+          "title": "Landerneau Floor Lamp",
+          "brand": "Boutique Rugs",
+          "priceCents": 13900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/MNWyAeq-l7tt-HE0Wiz?o=01M2H37B10WQHSSHPJ4JSHFHPC&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "boutiquerugs.com",
+          "image": "https://cdn.trychannel3.com/9308c9cc-e9f0-4beb-9de4-62470d4bdedf?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=l7tt",
+          "materials": [
+            "iron",
+            "metal"
+          ],
+          "colors": [
+            "#fefefe",
+            "#dedede"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 35.6,
+            "d": 35.6,
+            "h": 149.9
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 14,
+              "unit": "in"
+            },
+            "width": {
+              "number": 14,
+              "unit": "in"
+            },
+            "height": {
+              "number": 59,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 4990,
+              "unit": "g"
+            }
+          }
+        },
+        {
+          "id": "gxyyaGP",
+          "title": "Melrose Floor Lamp",
+          "brand": "Safavieh",
+          "priceCents": 10700,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/gxyyaGP-lULw-HE0Wiz?o=01M3C252W17SD07SVFMH6KZ51V&aid=01M6SDZ3ES98JYR1GRKYTRXGQ0",
+          "domain": "afastores.com",
+          "image": "https://cdn.trychannel3.com/87452727-2363-43ce-acf0-a730b1ea0763?aid=01M6SDZ3ES98JYR1GRKYTRXGQ0&mid=lULw",
+          "materials": [
+            "Metal"
+          ],
+          "colors": [],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 35.6,
+            "d": 35.6,
+            "h": 148.6
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 14,
+              "unit": "in"
+            },
+            "width": {
+              "number": 14,
+              "unit": "in"
+            },
+            "height": {
+              "number": 58.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 7.37,
+              "unit": "lb"
+            }
+          }
+        }
+      ]
+    },
+    "side-table": {
+      "query": "small oak side table",
+      "maxPrice": 135,
+      "resultIds": [
+        "Q6oiUrl",
+        "j4dDOii",
+        "aDhuUff",
+        "XlxHNYD",
+        "AnjD6cF",
+        "TZyy1GP",
+        "LLgnPBi",
+        "VsVX2KA"
+      ],
+      "retrievedAt": 1794002359738,
+      "candidates": [
+        {
+          "id": "Q6oiUrl",
+          "title": "Leick Home Square End Table",
+          "brand": "Leick Home",
+          "priceCents": 9299,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/Q6oiUrl-Z87s-HE0Wiz?o=01M1J872FWD22J5QCN5R4BMKAH&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "kohls.com",
+          "image": "https://cdn.trychannel3.com/589e7e9c-3b86-40e6-84a7-93abe94cb104?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=Z87s",
+          "materials": [
+            "Wood",
+            "Oak Veneers"
+          ],
+          "colors": [
+            "#672b0b",
+            "#fffffe",
+            "#401f0f"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 38.1,
+            "d": 38.1,
+            "h": 61
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 15,
+              "unit": "in"
+            },
+            "width": {
+              "number": 15,
+              "unit": "in"
+            },
+            "height": {
+              "number": 24,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "j4dDOii",
+          "title": "GUTTANE side table, oak, 58x39 cm",
+          "brand": "Ikea",
+          "priceCents": 10999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/j4dDOii-FwdJ-HE0Wiz?o=01M04MD154XHQZKMPZKDS22ZEF&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "ikea.com",
+          "image": "https://cdn.trychannel3.com/383702e9-5df1-4581-ae1c-66f87cfd452d?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=FwdJ",
+          "materials": [
+            "Particleboard",
+            "Oak veneer",
+            "Oil-acrylic",
+            "Solid oak",
+            "Solid beech"
+          ],
+          "colors": [
+            "#c4ab7a",
+            "#765632",
+            "#8f6e43"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 39.1,
+            "d": 58.1,
+            "h": 32.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 22.875,
+              "unit": "in"
+            },
+            "width": {
+              "number": 15.375,
+              "unit": "in"
+            },
+            "height": {
+              "number": 12.625,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 12.875,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "aDhuUff",
+          "title": "Elna Square Side Table",
+          "brand": "Hudson & Canal",
+          "priceCents": 11999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/aDhuUff-7Nxp-HE0Wiz?o=01M0VH6DHW28Y7DZ83K9DAYXRR&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "tractorsupply.com",
+          "image": "https://cdn.trychannel3.com/6bd1a9d8-e06d-430b-8123-66a9f7a8c242?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=7Nxp",
+          "materials": [
+            "MDF",
+            "Wood"
+          ],
+          "colors": [
+            "#746454",
+            "#524337",
+            "#948476"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 55.9,
+            "d": 55.9,
+            "h": 55.9
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 22,
+              "unit": "in"
+            },
+            "width": {
+              "number": 22,
+              "unit": "in"
+            },
+            "height": {
+              "number": 22,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "XlxHNYD",
+          "title": "Holmerud Side Table",
+          "brand": "Ikea",
+          "priceCents": 5900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/XlxHNYD-FwdJ-HE0Wiz?o=01M09WF177N4SPH4RKNAP3YPTM&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "ikea.com",
+          "image": "https://cdn.trychannel3.com/7d688b57-d656-4576-b377-d9f4a1925356?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=FwdJ",
+          "materials": [
+            "Top panel/ Bottom panel: Particleboard",
+            "Paper foil",
+            "Plastic edging",
+            "Side panel/ Shelf/ Partition: Particleboard",
+            "Fibreboard",
+            "Rail: Fibreboard",
+            "Care: Wipe clean with a damp cloth."
+          ],
+          "colors": [
+            "#a58f7a",
+            "#796146",
+            "#fffffd"
+          ],
+          "category": "sofa-tables",
+          "dims": {
+            "w": 31.1,
+            "d": 80,
+            "h": 52.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 31.5,
+              "unit": "in"
+            },
+            "width": {
+              "number": 12.25,
+              "unit": "in"
+            },
+            "height": {
+              "number": 20.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 28.43,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "AnjD6cF",
+          "title": "Bourne 10.75\" Wide Square Fluted Side Table",
+          "brand": "Hudson & Canal",
+          "priceCents": 8899,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/AnjD6cF-7Nxp-HE0Wiz?o=01M4XWHA2M8SMAKMKP95WAJ3T6&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "tractorsupply.com",
+          "image": "https://cdn.trychannel3.com/661d5908-ae17-43d3-a8fe-b50db3f8f19c?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=7Nxp",
+          "materials": [
+            "MDF",
+            "PVC"
+          ],
+          "colors": [
+            "#56493f",
+            "#3b3027",
+            "#7a6d62"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 27.9,
+            "d": 27.9,
+            "h": 55.9
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 11,
+              "unit": "in"
+            },
+            "width": {
+              "number": 11,
+              "unit": "in"
+            },
+            "height": {
+              "number": 22,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 20,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "TZyy1GP",
+          "title": "Small Wooden Side Table",
+          "brand": "HEYWOOD WAKEFIELD",
+          "priceCents": 12500,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/TZyy1GP-pOrQ-HE0Wiz?o=01KCEPV0J64GY9Q9C599KANFV3&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "chairish.com",
+          "image": "https://chairish-prod.freetls.fastly.net/image/product/sized/5dac2ac1-3de3-4c0d-a061-b0b091c3b4b0/1970s-haywood-wakefield-small-wooden-side-table-7701?aspect=fit&width=800&height=800",
+          "materials": [
+            "Wood"
+          ],
+          "colors": [
+            "#e0a147",
+            "#46270c",
+            "#ca8633"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "LLgnPBi",
+          "title": "Clower Light Oak Rectangular Side Table",
+          "brand": "Coaster Furniture",
+          "priceCents": 6435,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/LLgnPBi-mliQ-HE0Wiz?o=01M28DCWHN0M64KHJ3ADMNJZ9E&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "belfurniture.com",
+          "image": "https://cdn.trychannel3.com/657b2616-cd16-4c54-b60a-e3291d6efc7b?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=mliQ",
+          "materials": [
+            "particle board",
+            "MDF",
+            "melamine paper",
+            "engineered wood",
+            "veneer"
+          ],
+          "colors": [
+            "#b7a17e"
+          ],
+          "category": "sofa-tables",
+          "dims": {
+            "w": 29.2,
+            "d": 40,
+            "h": 59.7
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 15.75,
+              "unit": "in"
+            },
+            "width": {
+              "number": 11.5,
+              "unit": "in"
+            },
+            "height": {
+              "number": 23.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 11.9,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "VsVX2KA",
+          "title": "Arcus Side Table",
+          "brand": "Modway",
+          "priceCents": 10699,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/VsVX2KA-vyVK-HE0Wiz?o=01KMPN100VVJBHK7QCZEM023J7&aid=01M6SDZ535HKT94Q5D1ZS6P0Y5",
+          "domain": "ashleyfurniture.com",
+          "image": "https://cdn.trychannel3.com/4e670993-fedc-42fc-880b-b082f3ef9e2e?aid=01M6SDZ535HKT94Q5D1ZS6P0Y5&mid=vyVK",
+          "materials": [
+            "oak wood veneer",
+            "rubberwood"
+          ],
+          "colors": [
+            "#b38549",
+            "#fffffe",
+            "#c1a06f"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        }
+      ]
+    },
+    "rug": {
+      "query": "neutral flatweave area rug 5x7",
+      "maxPrice": 225,
+      "resultIds": [
+        "6oGLE2o",
+        "mvF4kXX",
+        "qV8BUzh",
+        "EjMzEI4",
+        "kOj1hfi",
+        "YSzwVyg",
+        "1HdbdkW",
+        "5YSNbRo"
+      ],
+      "retrievedAt": 1794002361023,
+      "candidates": [
+        {
+          "id": "6oGLE2o",
+          "title": "Lorre Neutral Flatweave Accent Rug",
+          "brand": "At Home",
+          "priceCents": 9999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/6oGLE2o-VtLY-HE0Wiz?o=01KT3QAJBA76GQNBVPVSZ128Z8&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "athome.com",
+          "image": "https://cdn.trychannel3.com/5e89afe6-0259-4639-95ac-4f2508df410e?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=VtLY",
+          "materials": [
+            "Jute"
+          ],
+          "colors": [
+            "#816f58",
+            "#a89780",
+            "#e1d2ba"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 84,
+              "unit": "in"
+            },
+            "width": {
+              "number": 60,
+              "unit": "in"
+            },
+            "height": {
+              "number": 0.4,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 25.5,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "mvF4kXX",
+          "title": "Linon 5'3\"x7'6\" Verginia Berber Reversible Flatweave Area Rug Dark Natural",
+          "brand": "Linon",
+          "priceCents": 13399,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/mvF4kXX-QnTm-HE0Wiz?o=01M62NV9JMQPZACVTKJBRHJ3KS&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "target.com",
+          "image": "https://cdn.trychannel3.com/88d9c95d-6bea-43a8-a4ac-967cf888f5ce?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=QnTm",
+          "materials": [
+            "wool"
+          ],
+          "colors": [
+            "#a2968c",
+            "#83786e",
+            "#c4baaf"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 90,
+              "unit": "in"
+            },
+            "width": {
+              "number": 63,
+              "unit": "in"
+            },
+            "height": null,
+            "weight": null
+          }
+        },
+        {
+          "id": "qV8BUzh",
+          "title": "Positano 5 x 7 Area Rug",
+          "brand": "Nourison",
+          "priceCents": 9200,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/qV8BUzh-lULw-HE0Wiz?o=01M3D35XKQ5NZ70ZACD0QAREB5&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "afastores.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/237f2bc8-1fd3-44b7-b5b2-e6f1b529f98e?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=lULw",
+          "materials": [
+            "100% Polypropylene"
+          ],
+          "colors": [
+            "#ab9d90"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 60,
+              "unit": "in"
+            },
+            "width": {
+              "number": 0.25,
+              "unit": "in"
+            },
+            "height": {
+              "number": 84,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 7.5,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "EjMzEI4",
+          "title": "Naples Solid Flatweave Area Rug",
+          "brand": "Lamps Plus",
+          "priceCents": 7900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/EjMzEI4-Q1hs-HE0Wiz?o=01KSCSDWDWXZ76VNAQ56TJ4Y5B&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "lampsplus.com",
+          "image": "https://cdn.trychannel3.com/fb090a6a-75ea-4b82-abc9-c6017d6f8c92?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=Q1hs",
+          "materials": [
+            "Synthetic"
+          ],
+          "colors": [
+            "#9f957f",
+            "#7c725b",
+            "#5b513b"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 3,
+              "unit": "ft"
+            },
+            "width": {
+              "number": 2,
+              "unit": "ft"
+            },
+            "height": null,
+            "weight": null
+          }
+        },
+        {
+          "id": "kOj1hfi",
+          "title": "Hades Flatweave Ivory Area Rug",
+          "brand": "Dash & Albert",
+          "priceCents": 11800,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/kOj1hfi-l1XT-HE0Wiz?o=01M33PN5HD7M53H8GAPM6HZ5SK&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "rugstudio.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/87789e8c-50ec-41ee-9cc7-41d7a3123a65?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=l1XT",
+          "materials": [
+            "Jute",
+            "Wool",
+            "Cotton",
+            "Polyester"
+          ],
+          "colors": [
+            "#d3c3af"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "YSzwVyg",
+          "title": "Sonnier Striped Flatweave Area Rug",
+          "brand": "Safavieh",
+          "priceCents": 15969,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/YSzwVyg-Qqxu-HE0Wiz?o=01M62P7KTQ9BHX0750PEGET13X&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/67d6b32c-7f15-450a-9e1b-2f0b351c0b0b?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=Qqxu",
+          "materials": [
+            "Jute",
+            "Cotton"
+          ],
+          "colors": [
+            "#dfd2c9",
+            "#c4b1a4"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "1HdbdkW",
+          "title": "Bridges Flatweave Khaki Area Rug",
+          "brand": "Dash & Albert",
+          "priceCents": 5400,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/1HdbdkW-l1XT-HE0Wiz?o=01M32PZNMMTM6QAXB929N0PJ88&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "rugstudio.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/65b0ae41-8ecc-47b6-98fc-e98b1d448839?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=l1XT",
+          "materials": [
+            "70% Cotton",
+            "27% Polyester",
+            "3% Others"
+          ],
+          "colors": [
+            "#ad967e"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "5YSNbRo",
+          "title": "Griffin Rustic Farmhouse Woven Flatweave Jute Area Rug",
+          "brand": "Jonathan Y",
+          "priceCents": 20586,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/5YSNbRo-Qqxu-HE0Wiz?o=01M50A4XV7881F8W95RFNJYNAT&aid=01M6SDZ6BMR94DCZ1DVQP36R5W",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/2bcf97f5-88a3-4a30-94e8-76f1d45f0f48?aid=01M6SDZ6BMR94DCZ1DVQP36R5W&mid=Qqxu",
+          "materials": [
+            "jute"
+          ],
+          "colors": [
+            "#b2ada4",
+            "#ecece6",
+            "#6f6452"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        }
+      ]
+    }
+  }
+}

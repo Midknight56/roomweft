@@ -1,0 +1,132 @@
+import { expect, it } from 'vitest';
+import { chromium } from 'playwright';
+import { build } from 'esbuild';
+import { readFile } from 'node:fs/promises';
+import { dragRoomObject } from '../../tools/browser-helpers.mjs';
+import { checkFit } from '../../src/shared/fit';
+import { DOOR, OWNED_ITEMS, ROOM, SLOTS, STYLES, WINDOW } from '../../src/shared/room';
+import type { DesignView, QuoteView, ReceiptView } from '../../src/shared/api-types';
+
+it('renders page hooks, keyboard actions, server totals, returns, readiness and phone copy', async () => {
+  const bundle = await build({ entryPoints: ['src/client/main.ts'], bundle: true, write: false, format: 'esm', minify: true });
+  expect(bundle.outputFiles[0].contents.byteLength).toBeLessThan(1_200_000);
+  const design: DesignView = { id: 'test-room', version: 1, mode: 'recorded', style: STYLES[0].id, budgetCents: 60000, owned: OWNED_ITEMS.map(item => ({ ...item })), fit: checkFit([], ROOM, DOOR, WINDOW), totals: { totalCents: 12345, budgetCents: 60000, overCents: 0, unverifiedCount: 0 }, labels: { search: 'recorded', ai: 'recorded' }, slots: SLOTS.map((slot, index) => ({ slot: slot.id, pick: { id: slot.id, title: `Item ${index}`, priceCents: 10000, currency: 'USD', url: 'https://example.test/', domain: 'example.test', colors: [], materials: [], dims: { w: 40, d: 40, h: 80 } }, by: 'recorded', reason: 'Fits this room.', placement: { x: 80 + index * 60, z: 130, rot: 0 }, alternates: [{ candidate: { id: 'alternative', title: 'Other item', priceCents: 5000, currency: 'USD', url: 'https://example.test/', domain: 'example.test', colors: [], materials: [], dims: null }, verified: false, fit: { passes: true, messages: [] }, priceDeltaCents: -5000 }], source: null })) };
+  const quote: QuoteView = { id: 'q-one', designId: design.id, designVersion: 1, totalCents: 12345, state: 'paid', lines: design.slots.map(slot => ({ lineId: slot.slot, roomObjectId: slot.slot, productId: slot.pick!.id, title: slot.pick!.title, priceCents: slot.pick!.priceCents, currency: 'USD', url: slot.pick!.url, domain: slot.pick!.domain, fitStatus: 'fits', source: null })) };
+  const receipt: ReceiptView = { quote, orderId: 'test-order', captureId: 'test-capture', capturedCents: 12345, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: [] };
+  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, hasTouch: true }); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    const moves: { itemId:string; x:number; z:number; rot:number }[] = [];
+    let requests = 0; const designBudgets: number[] = []; let holdNext = false; let releaseDesign: (() => void) | undefined;
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url()); if (url.hostname !== 'room.test') return route.abort();
+      const json = (body: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+      if (url.pathname === '/api/design') { requests++; const body = route.request().postDataJSON() as { style: string; budget: number }; designBudgets.push(body.budget); if (holdNext) { holdNext = false; await new Promise<void>(resolve => { releaseDesign = resolve; }); } return json({...design,style:body.style,budgetCents:body.budget*100}); }
+      if (url.pathname.endsWith('/move')) {
+        const body = route.request().postDataJSON() as typeof moves[number]; moves.push(body);
+        if (body.itemId === 'desk') return route.fulfill({ status:400, contentType:'application/json', body:JSON.stringify({error:'The desk is locked. Unlock it first.',code:'invalid'}) });
+        const owned = design.owned.map(item=>item.id===body.itemId?{...item,x:body.x,z:body.z,rot:body.rot as 0|90|180|270}:item);
+        return json({...design,owned});
+      }
+      if (url.pathname === '/api/scenes') return json({});
+      if (url.pathname === '/api/status') return json({ search: { live: true, remainingToday: 3 }, ai: { live: false, remainingNeuronsToday: 0 }, sandbox: { live: true }, visitor: { liveDesignsLeft: 3, checkoutsLeft: 3, refundsLeft: 3 } });
+      if (url.pathname === '/api/quote') return json({ ...quote, state: 'open' });
+      if (url.pathname === '/api/receipt/q-one') return json(receipt);
+      if (url.pathname === '/app.js') return route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text });
+      if (url.pathname === '/' || url.pathname === '/styles.css') return route.fulfill({ contentType: url.pathname === '/' ? 'text/html' : 'text/css', body: await readFile(url.pathname === '/' ? 'public/index.html' : 'public/styles.css') });
+      return route.fulfill({ status: 404, body: '' });
+    });
+    await page.goto('http://room.test/?checkout=cancelled&message=Payment%20was%20cancelled.&keep=yes');
+    await page.waitForFunction('window.__roomweftReady === true');
+    expect(designBudgets[0]).toBe(700);
+    expect(new URL(page.url()).search).toBe('?keep=yes');
+    expect(await page.locator('.step').nth(3).innerText()).toContain('Payment was cancelled.');
+    expect(await page.locator('.total').innerText()).toBe('$123.45 of $600.00');
+    expect(await page.locator('.step').nth(3).innerText()).toContain('$476.55 left');
+    for (const style of STYLES) expect(await page.getByTestId(`style-${style.id}`).count()).toBe(1);
+    for (const item of OWNED_ITEMS) expect(await page.getByTestId(`lock-${item.id}`).count()).toBe(1);
+    for (const slot of SLOTS) { expect(await page.getByTestId(`slot-${slot.id}`).count()).toBe(1); expect(await page.getByTestId(`swap-${slot.id}`).count()).toBe(1); }
+    expect(await page.locator('.alternate .amber').allTextContents()).toEqual(SLOTS.map(() => 'Fit unverified'));
+    for (const id of ['search-live', 'use-recorded', 'budget', 'receipt', 'judges', 'mode-label']) expect(await page.getByTestId(id).count()).toBe(1);
+    for (const mode of ['plan', 'walk', 'overview']) { const button = page.getByTestId(`mode-${mode}`); await button.focus(); await page.keyboard.press('Space'); expect(await button.getAttribute('aria-pressed')).toBe('true'); expect(await button.getAttribute('aria-label')).toContain('view'); }
+    await page.getByTestId('mode-plan').click(); await page.waitForTimeout(650);
+    const deskBox = (await page.locator('[data-object-id="desk"]').boundingBox())!;
+    await page.touchscreen.tap(deskBox.x+deskBox.width/2,deskBox.y+deskBox.height/2);
+    await page.locator('[data-object-id="desk"]').focus();
+    await page.waitForTimeout(50); expect(await page.locator('#object-label').isVisible()).toBe(true); expect(await page.locator('#object-label').innerText()).toContain('Locked');
+    await page.getByTestId('mode-overview').click();
+    await page.getByTestId(`style-${STYLES[1].id}`).focus(); await page.keyboard.press('Enter'); await page.waitForFunction('window.__roomweftReady === true'); expect(await page.getByTestId(`style-${STYLES[1].id}`).getAttribute('aria-pressed')).toBe('true');
+    expect(await page.getByTestId(`style-${STYLES[1].id}`).evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
+    await page.keyboard.press('Tab'); expect(await page.getByTestId(`style-${STYLES[2].id}`).evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
+    holdNext = true; await page.getByTestId('use-recorded').focus(); await page.keyboard.press('Space'); await page.waitForFunction('window.__roomweftReady === false');
+    await page.waitForTimeout(30); expect(requests).toBe(3); releaseDesign?.(); await page.waitForFunction('window.__roomweftReady === true');
+    expect(await page.getByTestId('use-recorded').evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
+    const budget = page.getByRole('spinbutton',{name:/budget/i});
+    let beforeRequests = requests;
+    await budget.fill('850'); await budget.press('Enter'); await page.waitForFunction('window.__roomweftReady === true');
+    expect(designBudgets.at(-1)).toBe(850);
+    await page.getByRole('spinbutton',{name:/budget/i}).press('Tab'); await page.waitForTimeout(100);
+    expect(requests).toBe(beforeRequests+1);
+    beforeRequests = requests;
+    await page.getByRole('spinbutton',{name:/budget/i}).fill('1100'); await page.getByRole('spinbutton',{name:/budget/i}).press('Tab');
+    await page.waitForFunction('window.__roomweftReady === true'); expect(requests).toBe(beforeRequests+1);
+    await page.getByTestId('mode-plan').click();
+    const floor = page.getByTestId('plan-floor'); const shelf = page.locator('[data-object-id="bookshelf"]');
+    expect(await page.locator('[data-object-id]').count()).toBe(7);
+    await page.getByRole('button',{name:'Move south',exact:true}).focus(); await page.keyboard.press('Tab');
+    expect(await page.locator('[data-object-id="desk"]').evaluate(node=>node===document.activeElement)).toBe(true);
+    const checkBounds = async ():Promise<void> => {
+      const bounds = (await floor.boundingBox())!; expect(bounds.height).toBeGreaterThan(100); const box = (await shelf.boundingBox())!;
+      const canvas = (await page.locator('#room canvas').boundingBox())!;
+      const half = Math.max(215,210/(canvas.width/canvas.height));
+      expect(bounds.width).toBeCloseTo(380/(2*half*canvas.width/canvas.height)*canvas.width,1);
+      expect(bounds.height).toBeCloseTo(320/(2*half)*canvas.height,1);
+      expect(bounds.x+bounds.width/2).toBeCloseTo(canvas.x+canvas.width/2,1);
+      expect(bounds.y+bounds.height/2).toBeCloseTo(canvas.y+canvas.height/2,1);
+      expect(box.x-bounds.x).toBeCloseTo(5/380*bounds.width,1);
+      expect(box.y-bounds.y).toBeCloseTo(100/320*bounds.height,1);
+      expect(box.width).toBeCloseTo(30/380*bounds.width,1);
+      expect(box.height).toBeCloseTo(80/320*bounds.height,1);
+      expect(await shelf.evaluate(node=>getComputedStyle(node).pointerEvents)).toBe('none');
+    };
+    await checkBounds();
+    await page.setViewportSize({width:1200,height:900}); await page.waitForTimeout(100); await checkBounds();
+    await shelf.focus(); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
+    expect(moves).toHaveLength(0); await page.waitForTimeout(400);
+    expect(moves).toEqual([{itemId:'bookshelf',x:25,z:190,rot:90}]);
+    await shelf.focus(); await page.keyboard.press('r'); await page.waitForTimeout(400);
+    expect(moves[1]).toEqual({itemId:'bookshelf',x:25,z:190,rot:180});
+    await dragRoomObject(page,'bookshelf',120,130); await page.waitForTimeout(150);
+    expect(moves[2]).toMatchObject({itemId:'bookshelf',x:120,z:130});
+    await page.locator('[data-object-id="desk"]').focus(); await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(400);
+    expect(await page.locator('[role="alert"]').innerText()).toContain('The desk is locked. Unlock it first.');
+    await page.getByTestId('mode-overview').click(); expect(await floor.isVisible()).toBe(false);
+    await page.getByTestId('freeze-quote').click(); await page.getByTestId('pay').waitFor();
+    await page.setViewportSize({ width: 599, height: 800 }); expect(await page.locator('.room-caption').isVisible()).toBe(false);
+    await page.setViewportSize({ width: 600, height: 800 }); expect(await page.locator('.room-caption').isVisible()).toBe(true);
+    await page.goto('http://room.test/?receipt=q-one'); await page.getByTestId('refund-reading-chair').waitFor();
+    expect(new URL(page.url()).search).toBe(''); expect(await page.getByTestId('receipt').evaluate(node => node === node.ownerDocument.activeElement)).toBe(true);
+    expect(await page.getByTestId('receipt').innerText()).toContain('Capture test-capture');
+    design.fit.doorSwing=['reading-chair'];
+    design.fit.passes=false;
+    await page.goto('http://room.test/');
+    await page.waitForFunction('window.__roomweftReady === true');
+    expect(await page.getByRole('button',{name:'Swap for one that fits',exact:true}).count()).toBe(0);
+    const chair=design.slots[0];
+    chair.alternates.push({...chair.alternates[0],verified:true,candidate:{...chair.alternates[0].candidate,id:'verified-chair',dims:{w:58,d:58,h:80}}});
+    let swappedId='';
+    await page.route('**/api/design/*/swap',async route=>{
+      swappedId=route.request().postDataJSON().productId as string;
+      await route.fulfill({contentType:'application/json',body:JSON.stringify(design)});
+    });
+    await page.getByTestId('use-recorded').click();
+    await page.waitForFunction('window.__roomweftReady === true');
+    const swap=page.getByRole('button',{name:'Swap for one that fits',exact:true});
+    expect(await swap.count()).toBe(1);
+    await swap.click();
+    await page.waitForFunction('window.__roomweftReady === true');
+    expect(swappedId).toBe('verified-chair');
+    expect(await page.getByTestId('slot-reading-chair').locator('.alternate .amber').allTextContents()).toEqual(['Fit unverified']);
+    expect(errors).toEqual([]);
+  } finally { await browser.close(); }
+}, 30000);

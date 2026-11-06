@@ -1,0 +1,29 @@
+import type { ApiError, DesignView, OwnedState, Placement, QuoteView, ReceiptView, StatusView } from '../shared/api-types';
+import type { SlotId } from '../shared/room';
+
+export class RequestError extends Error {
+  constructor(message: string, public code: string, public status: number) { super(message); }
+}
+async function request<T>(path: string, body?: object): Promise<T> {
+  const response = await fetch(path, { method: body ? 'POST' : 'GET', credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (!response.headers.get('content-type')?.includes('application/json')) throw new RequestError('The room service is unavailable. Please try again.', 'unavailable', response.status);
+  const value: unknown = await response.json();
+  if (!response.ok) {
+    const error = value as Partial<ApiError>;
+    throw new RequestError(error.error ?? 'The request could not be completed.', error.code ?? 'request_failed', response.status);
+  }
+  return value as T;
+}
+const id = encodeURIComponent;
+export const api = {
+  // No scenes response shape is defined in the shared contract yet.
+  scenes: (): Promise<unknown> => request('/api/scenes'),
+  status: (): Promise<StatusView> => request('/api/status'),
+  design: (style: string, budget: number, owned: OwnedState[], live: boolean): Promise<DesignView> => request('/api/design', { style, budget: Math.round(budget / 100), owned, live }),
+  swap: (designId: string, slot: SlotId, productId: string): Promise<DesignView> => request(`/api/design/${id(designId)}/swap`, { slot, productId }),
+  move: (designId: string, itemId: string, placement: Placement): Promise<DesignView> => request(`/api/design/${id(designId)}/move`, { itemId, ...placement }),
+  quote: (design: DesignView): Promise<QuoteView> => request('/api/quote', { designId: design.id, version: design.version }),
+  checkout: (quoteId: string): Promise<QuoteView> => request('/api/checkout', { quoteId }),
+  receipt: (quoteId: string): Promise<ReceiptView> => request(`/api/receipt/${id(quoteId)}`),
+  refund: (quoteId: string, lineId: SlotId): Promise<ReceiptView> => request('/api/refund', { quoteId, lineId }),
+};

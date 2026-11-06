@@ -1,0 +1,1116 @@
+{
+  "style": "warm-reading",
+  "capturedAt": "2026-11-06T21:59:13.710Z",
+  "slots": {
+    "reading-chair": {
+      "query": "small upholstered reading armchair",
+      "maxPrice": 280,
+      "resultIds": [
+        "K2AqJmX",
+        "odVFnbf",
+        "S1qbI1y",
+        "K8u6pxj",
+        "3ObHHWq",
+        "SaD8PMI",
+        "8aYTywB",
+        "5cIO7oe"
+      ],
+      "retrievedAt": 1794002349553,
+      "candidates": [
+        {
+          "id": "K2AqJmX",
+          "title": "Garvee Flannel Accent Chair Upholstered Armchair",
+          "brand": "GARVEE",
+          "priceCents": 11997,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/K2AqJmX-Qqxu-HE0Wiz?o=01M3SVHJ2A9MVW7H27AK1ZK15W&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/25d5ed19-562e-48a2-9703-a7f76ce4755c?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=Qqxu",
+          "materials": [
+            "flannel",
+            "wood",
+            "foam"
+          ],
+          "colors": [
+            "#141210",
+            "#786d50"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 63.5,
+            "d": 68.6,
+            "h": 71.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 27,
+              "unit": "in"
+            },
+            "width": {
+              "number": 25,
+              "unit": "in"
+            },
+            "height": {
+              "number": 28,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "odVFnbf",
+          "title": "Flannel Accent Chair Upholstered Armchair",
+          "brand": "GARVEE",
+          "priceCents": 13052,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/odVFnbf-Qqxu-HE0Wiz?o=01M3SQ53762YW7BGT6PZV1SNGA&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/83d84ebb-6132-4693-a628-9d434d1298c0?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=Qqxu",
+          "materials": [
+            "flannel",
+            "wood",
+            "foam"
+          ],
+          "colors": [
+            "#0e0f07",
+            "#39301e",
+            "#cac5be"
+          ],
+          "category": "armchairs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 29,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "S1qbI1y",
+          "title": "Viola Essence Small Armchair",
+          "brand": "Poltrona Frau",
+          "priceCents": 2500,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/S1qbI1y-sS4g-HE0Wiz?o=01M61XG5KQSVPWHR3ZZYTGTV83&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "harrods.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/329b31e7-72f2-436a-b56a-81ba51579d21?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=sS4g",
+          "materials": [
+            "ash wood",
+            "polyurethane foam",
+            "polyester wadding",
+            "feathers",
+            "metal",
+            "leather",
+            "fabric"
+          ],
+          "colors": [
+            "#d2cec4",
+            "#fdfcfc",
+            "#423d39"
+          ],
+          "category": "armchairs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 82,
+              "unit": "cm"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "K8u6pxj",
+          "title": "PU Leather Rattan Armchair Wooden Frame High Back Upholstered Reading Chair",
+          "brand": "GARVEE",
+          "priceCents": 13298,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/K8u6pxj-Qqxu-HE0Wiz?o=01M66GMNEPKH5REHX6P98NVYQW&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/4d93870d-65cc-4dbf-8d33-98fdf01e323e?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=Qqxu",
+          "materials": [
+            "PU leather",
+            "rattan",
+            "wood",
+            "high-density foam"
+          ],
+          "colors": [
+            "#d2b391",
+            "#b5743c",
+            "#6b4124"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 63.5,
+            "d": 68.8,
+            "h": 81.3
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 27.1,
+              "unit": "in"
+            },
+            "width": {
+              "number": 25,
+              "unit": "in"
+            },
+            "height": {
+              "number": 32,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 300,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "3ObHHWq",
+          "title": "Upholstered Armchair",
+          "brand": "Latitude Run®",
+          "priceCents": 25390,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/3ObHHWq-BIP9-HE0Wiz?o=01KSY836GBEQEB8YPJ5AYRC9V2&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "wayfair.com",
+          "image": "https://cdn.trychannel3.com/96bce3ca-e5e4-40d0-862e-7e363aaed48b?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=BIP9",
+          "materials": [
+            "Polyester",
+            "Wood"
+          ],
+          "colors": [
+            "#ccbba5",
+            "#998063",
+            "#b39e84"
+          ],
+          "category": "armchairs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "SaD8PMI",
+          "title": "Markan Upholstered Armchair",
+          "brand": "Ebern Designs",
+          "priceCents": 20999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/SaD8PMI-BIP9-HE0Wiz?o=01M5VDC4WC1X5HHTV2P7D1RNJP&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "wayfair.com",
+          "image": "https://cdn.trychannel3.com/4d6dd048-d33c-4aeb-b1db-c79f2e545b6f?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=BIP9",
+          "materials": [
+            "Cotton",
+            "Solid Wood",
+            "Foam",
+            "Plastic"
+          ],
+          "colors": [
+            "#698d9b",
+            "#4e707e"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 96.5,
+            "d": 78.7,
+            "h": 91.4
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 31,
+              "unit": "in"
+            },
+            "width": {
+              "number": 38,
+              "unit": "in"
+            },
+            "height": {
+              "number": 36,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 43,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "8aYTywB",
+          "title": "Plush Fabric Tufted Accent Arm Chair",
+          "brand": "Christopher Knight Home",
+          "priceCents": 1000,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/8aYTywB-FP7n-HE0Wiz?o=01KT032M8563JGK14B5BA61GSM&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/adab6c62-3049-4a66-9c31-5b807872851c?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=FP7n",
+          "materials": [
+            "fabric",
+            "foam",
+            "rubber wood",
+            "plywood",
+            "solid wood"
+          ],
+          "colors": [
+            "#c0b8ac",
+            "#a29a8f",
+            "#25211d"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 73,
+            "d": 82,
+            "h": 82
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 32.3,
+              "unit": "in"
+            },
+            "width": {
+              "number": 28.75,
+              "unit": "in"
+            },
+            "height": {
+              "number": 32.3,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "5cIO7oe",
+          "title": "Accent Chair",
+          "brand": "Coaster Furniture",
+          "priceCents": 26145,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/5cIO7oe-FP7n-HE0Wiz?o=01KVW8PBVPSWZG4FP8TQXDKST4&aid=01M6SDYV4FMZ9WN8H4MACGCMX7",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/e6db8caa-9d46-475b-9baa-db6355335a3c?aid=01M6SDYV4FMZ9WN8H4MACGCMX7&mid=FP7n",
+          "materials": [
+            "upholstered"
+          ],
+          "colors": [
+            "#6f7071",
+            "#95979b"
+          ],
+          "category": "armchairs",
+          "dims": null,
+          "dimsRaw": null
+        }
+      ]
+    },
+    "floor-lamp": {
+      "query": "warm arc floor lamp",
+      "maxPrice": 140,
+      "resultIds": [
+        "7D6R1cm",
+        "AWp7IoV",
+        "4Hq4TrU",
+        "LOF45wF",
+        "iDe0Of4",
+        "0b4M0JN",
+        "KZA15I2",
+        "7ns6sDq"
+      ],
+      "retrievedAt": 1794002351141,
+      "candidates": [
+        {
+          "id": "7D6R1cm",
+          "title": "Adesso Burlap Arc Floor Lamp",
+          "brand": "Adesso",
+          "priceCents": 14000,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/7D6R1cm-lCZ3-HE0Wiz?o=01M3TGA991QMC4PC1SQ7ZHYM1Q&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "luxedecor.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/299b5536-fdfa-4c42-8db9-6a80cfb1e9b9?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=lCZ3",
+          "materials": [
+            "Metal",
+            "Burlap"
+          ],
+          "colors": [
+            "#9d6f44",
+            "#c08f5d",
+            "#cbac8c"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "AWp7IoV",
+          "title": "Emry Arc Floor Lamp",
+          "brand": "LumiSource",
+          "priceCents": 11799,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/AWp7IoV-vyVK-HE0Wiz?o=01KRHT4G4Y6JT459A6C832H7AD&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "ashleyfurniture.com",
+          "image": "https://cdn.trychannel3.com/08c7e4b2-9f30-494b-a018-0358310a33b8?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=vyVK",
+          "materials": [],
+          "colors": [
+            "#c5bca8",
+            "#e6ded0",
+            "#aa9e8b"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "4Hq4TrU",
+          "title": "Romy 68'' Antique Bronze Arc Floor Lamp",
+          "brand": "Bob's Discount Furniture",
+          "priceCents": 8999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/4Hq4TrU-yAS8-HE0Wiz?o=01KHZV9PTZ9PVXX065K14ZFYJG&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "mybobs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/cb68b696-9b12-4f8c-b6fd-aa8db8b84133?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=yAS8",
+          "materials": [
+            "Steel",
+            "Fabric"
+          ],
+          "colors": [
+            "#f4e0a6",
+            "#38342e",
+            "#a89d8b"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 31.8,
+            "d": 119.4,
+            "h": 172.7
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 47,
+              "unit": "in"
+            },
+            "width": {
+              "number": 12.5,
+              "unit": "in"
+            },
+            "height": {
+              "number": 68,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 15,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "LOF45wF",
+          "title": "Brightech 53-in Antique Brass Arc Floor Lamp",
+          "brand": "Brightech",
+          "priceCents": 6999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/LOF45wF-Qqxu-HE0Wiz?o=01KHXJ0J6WB4MBW2YWDNKJ2J05&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/413bc2f8-b7f6-47ca-b948-937a2d83a703?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=Qqxu",
+          "materials": [],
+          "colors": [
+            "#b29f7b",
+            "#9b855b",
+            "#f7efda"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "iDe0Of4",
+          "title": "Simplee Burlap Arc Floor Lamp",
+          "brand": "Adesso",
+          "priceCents": 7546,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/iDe0Of4-K6RA-HE0Wiz?o=01M1PJ49A4ZAWH18B26NV9E58Q&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "macys.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/a765c965-097d-4a5d-9d27-b7bad8d77938?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=K6RA",
+          "materials": [
+            "Metal",
+            "Fabric"
+          ],
+          "colors": [
+            "#544e48",
+            "#c1ab8c",
+            "#906f4a"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 119.4,
+            "d": 31.8,
+            "h": 172.7
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 12.5,
+              "unit": "in"
+            },
+            "width": {
+              "number": 47,
+              "unit": "in"
+            },
+            "height": {
+              "number": 68,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 15,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "0b4M0JN",
+          "title": "Modern Arc Floor Lamp with White Linen Shade",
+          "brand": "Crestview",
+          "priceCents": 13971,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/0b4M0JN-FP7n-HE0Wiz?o=01KY6HG8E9FGDD07QZ3YAEYQKN&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/c2edfe0b-ce17-4250-9ef9-5b8bb385ff6e?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=FP7n",
+          "materials": [
+            "steel",
+            "linen"
+          ],
+          "colors": [
+            "#b5ab9c",
+            "#dcdcdc",
+            "#908571"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 55.9,
+            "d": 55.9,
+            "h": 173.4
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 22,
+              "unit": "in"
+            },
+            "width": {
+              "number": 22,
+              "unit": "in"
+            },
+            "height": {
+              "number": 68.25,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "KZA15I2",
+          "title": "Evolution Arc Floor Lamp",
+          "brand": "Ashley®",
+          "priceCents": 13999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/KZA15I2-vyVK-HE0Wiz?o=01M35BA3KH3VV8F26G2G1YH64S&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "ashleyfurniture.com",
+          "image": "https://cdn.trychannel3.com/656e6e2c-c520-4100-84de-d6128917c8c3?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=vyVK",
+          "materials": [
+            "steel",
+            "linen"
+          ],
+          "colors": [
+            "#b2a999",
+            "#8a7e6a",
+            "#dcdddb"
+          ],
+          "category": "lamps",
+          "dims": {
+            "w": 55.9,
+            "d": 55.9,
+            "h": 173.4
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 22,
+              "unit": "in"
+            },
+            "width": {
+              "number": 22,
+              "unit": "in"
+            },
+            "height": {
+              "number": 68.25,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 17.16,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "7ns6sDq",
+          "title": "Helios Arc Floor Lamp",
+          "brand": "Hudson & Canal",
+          "priceCents": 7646,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/7ns6sDq-SqEL-HE0Wiz?o=01KBPDG2VTGTFA45TPG16VXWQC&aid=01M6SDYWPEE9ZW2FDWS8P25XCQ",
+          "domain": "raymourflanigan.com",
+          "image": "https://cdn.trychannel3.com/d667ff11-348c-43e5-8084-8c87f552ed20?aid=01M6SDYWPEE9ZW2FDWS8P25XCQ&mid=SqEL",
+          "materials": [
+            "metal"
+          ],
+          "colors": [
+            "#2b2b27",
+            "#4f504b",
+            "#a2a19d"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        }
+      ]
+    },
+    "side-table": {
+      "query": "small round wood side table",
+      "maxPrice": 105,
+      "resultIds": [
+        "MVm5tuw",
+        "C5YyOuA",
+        "YZD8T7L",
+        "VvTvu5n",
+        "IaEnXxl",
+        "6qATBam",
+        "quYe9MZ",
+        "VTZVMWb"
+      ],
+      "retrievedAt": 1794002352386,
+      "candidates": [
+        {
+          "id": "MVm5tuw",
+          "title": "Outdoor Side Table",
+          "brand": "Costway",
+          "priceCents": 8899,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/MVm5tuw-p1PB-HE0Wiz?o=01KZCZKXGN37HW6QJZDPS2PZYH&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/e5f6ee60-3d42-4113-b625-2ba34e7b7bd6?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=p1PB",
+          "materials": [
+            "wood",
+            "fir",
+            "pine"
+          ],
+          "colors": [
+            "#48352b",
+            "#ffffff",
+            "#635752"
+          ],
+          "category": "side-tables",
+          "dims": {
+            "w": 61,
+            "d": 61,
+            "h": 44.5
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 24,
+              "unit": "in"
+            },
+            "width": {
+              "number": 24,
+              "unit": "in"
+            },
+            "height": {
+              "number": 17.5,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "C5YyOuA",
+          "title": "Chiro Round Wood Side Table",
+          "brand": "Modway",
+          "priceCents": 5469,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/C5YyOuA-BIP9-HE0Wiz?o=01M5P0PN6T1A56B0EYEG1VHB44&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "wayfair.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/8ff32df6-c1f4-4dae-b793-00e26d08e80d?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=BIP9",
+          "materials": [
+            "mango wood"
+          ],
+          "colors": [
+            "#966950",
+            "#56382a",
+            "#7a5442"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 45.7,
+            "d": 45.7,
+            "h": 54.9
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 18,
+              "unit": "in"
+            },
+            "width": {
+              "number": 18,
+              "unit": "in"
+            },
+            "height": {
+              "number": 21.6,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 9,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "YZD8T7L",
+          "title": "Silas Round Wood Side Table By Modway",
+          "brand": "Modway",
+          "priceCents": 10275,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/YZD8T7L-xhUA-HE0Wiz?o=01KBPA8E1REV2KP2CJESVG3JVW&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "lexmod.com",
+          "image": "https://cdn.trychannel3.com/cf5bc9e1-9f06-459a-aa46-e99c458b2d28?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=xhUA",
+          "materials": [
+            "mango wood",
+            "veneer"
+          ],
+          "colors": [
+            "#653f29",
+            "#8b5f46",
+            "#b28061"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "VvTvu5n",
+          "title": "Madison Round Side Table",
+          "brand": "Bob's Discount Furniture",
+          "priceCents": 9999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/VvTvu5n-yAS8-HE0Wiz?o=01M31AGHK6V0AJCSHVDGCN0Y2W&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "mybobs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/41f58fef-1907-4456-a417-76fb96858e0b?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=yAS8",
+          "materials": [
+            "MDF",
+            "Solid Acacia",
+            "Paper Veneer"
+          ],
+          "colors": [
+            "#fffffe",
+            "#ab9a8a",
+            "#c6b7a9"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 2,
+              "unit": "in"
+            },
+            "width": {
+              "number": 2,
+              "unit": "in"
+            },
+            "height": {
+              "number": 24,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 18,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "IaEnXxl",
+          "title": "Round Side Table",
+          "brand": "POLYWOOD",
+          "priceCents": 9900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/IaEnXxl-E7fe-HE0Wiz?o=01KTVZMCG0GH2EX0E7TP2QX7RC&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "polywood.com",
+          "image": "https://cdn.trychannel3.com/0eb94f31-edf0-4bbb-ae72-cb81a2f9aaff?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=E7fe",
+          "materials": [
+            "CLIMATETUFF™ MATERIALS",
+            "Genuine POLYWOOD™ lumber",
+            "high-density polyethylene (HDPE)",
+            "ColorStay™",
+            "18-8 marine-grade quality stainless steel fasteners",
+            "Xylan coating",
+            "POLYWOOD Select™ lumber",
+            "Microcell™"
+          ],
+          "colors": [
+            "#36261c",
+            "#b6b3ab",
+            "#dcdad7"
+          ],
+          "category": "side-tables",
+          "dims": {
+            "w": 45.7,
+            "d": 45.7,
+            "h": 45.7
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 18,
+              "unit": "in"
+            },
+            "width": {
+              "number": 18,
+              "unit": "in"
+            },
+            "height": {
+              "number": 18,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 10,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "6qATBam",
+          "title": "Madison Round Side Table",
+          "brand": "Bob's Discount Furniture",
+          "priceCents": 9999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/6qATBam-yAS8-HE0Wiz?o=01KJ0TZFPCA39MCVS2HACFCPS0&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "mybobs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/2ca71a03-518f-4259-825d-1ed9032fe9d9?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=yAS8",
+          "materials": [
+            "MDF",
+            "Solid Acacia",
+            "Paper Veneer"
+          ],
+          "colors": [
+            "#d6d4cb",
+            "#ffffff"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 55.9,
+            "d": 55.9,
+            "h": 61
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 22,
+              "unit": "in"
+            },
+            "width": {
+              "number": 22,
+              "unit": "in"
+            },
+            "height": {
+              "number": 24,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 18,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "quYe9MZ",
+          "title": "Round Side Table",
+          "brand": "Ashley Gold",
+          "priceCents": 7099,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/quYe9MZ-vyVK-HE0Wiz?o=01KRK9K47YS4YM47ZMJF5N0V88&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "ashleyfurniture.com",
+          "image": "https://cdn.trychannel3.com/f6b3bf86-92d6-4670-b720-4a154db8ca79?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=vyVK",
+          "materials": [
+            "Paulownia Wood"
+          ],
+          "colors": [
+            "#3c3c3c",
+            "#1a1a1a",
+            "#686868"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "VTZVMWb",
+          "title": "Stockholm 2025 Side Table",
+          "brand": "Ikea",
+          "priceCents": 8900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/VTZVMWb-FwdJ-HE0Wiz?o=01KZPD7Z6V4K7PPXQDRRV97R50&aid=01M6SDYXZAPA23T9VC388HZ9XQ",
+          "domain": "ikea.com",
+          "image": "https://cdn.trychannel3.com/0ed4cdec-4f9f-430b-99d0-0751a952111d?aid=01M6SDYXZAPA23T9VC388HZ9XQ&mid=FwdJ",
+          "materials": [
+            "Top: Particleboard, Pine veneer, Clear lacquer",
+            "Bottom: Particleboard, Pine veneer, Clear lacquer",
+            "Leg: Solid pine, Tinted clear lacquer",
+            "Care: Wipe clean with a damp cloth"
+          ],
+          "colors": [
+            "#e2c89f",
+            "#c7a981"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 44,
+            "d": 53,
+            "h": 43
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 53,
+              "unit": "cm"
+            },
+            "width": {
+              "number": 44,
+              "unit": "cm"
+            },
+            "height": {
+              "number": 43,
+              "unit": "cm"
+            },
+            "weight": {
+              "number": 5.65,
+              "unit": "kg"
+            }
+          }
+        }
+      ]
+    },
+    "rug": {
+      "query": "warm wool area rug 5x7",
+      "maxPrice": 175,
+      "resultIds": [
+        "DKufoo5",
+        "39TA33J",
+        "p0sSU9z",
+        "mwtJcuk",
+        "xRSnG5J",
+        "OroIoIz",
+        "QTLXC8a",
+        "Q1LNevN"
+      ],
+      "retrievedAt": 1794002353710,
+      "candidates": [
+        {
+          "id": "DKufoo5",
+          "title": "Tribesigns Washable Southwestern 5x7 Area Rug",
+          "brand": "Tribesigns",
+          "priceCents": 13986,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/DKufoo5-p1PB-HE0Wiz?o=01M6PVNH1JGAFA3H7A7KC6JY27&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/4087dc6e-5a96-4b85-9806-515adb76133b?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=p1PB",
+          "materials": [
+            "faux wool"
+          ],
+          "colors": [
+            "#7e7d7d",
+            "#211715",
+            "#d0cbc9"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "39TA33J",
+          "title": "Nuloom Mana Rug",
+          "brand": "Ashley Childers for Global Views",
+          "priceCents": 11499,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/39TA33J-vyVK-HE0Wiz?o=01KMQR4DW6HVAKHYBQHBA0G80T&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "ashleyfurniture.com",
+          "image": "https://cdn.trychannel3.com/264604cc-fcdb-4380-a799-1379d7a81ca9?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=vyVK",
+          "materials": [
+            "Wool"
+          ],
+          "colors": [],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "p0sSU9z",
+          "title": "Area Rug",
+          "brand": "Surya Rugs",
+          "priceCents": 5000,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/p0sSU9z-l1XT-HE0Wiz?o=01KBP7R71ED41WAR4Q1AXGHW5X&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "rugstudio.com",
+          "image": "https://cdn.trychannel3.com/p0sSU9z?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=l1XT",
+          "materials": [
+            "Wool"
+          ],
+          "colors": [],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "mwtJcuk",
+          "title": "Herrick T36T8021-B Charcoal Wool Handwoven Area Rug",
+          "brand": "Thom Filicia",
+          "priceCents": 11900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/mwtJcuk-nQ5x-HE0Wiz?o=01M2PG66GRKWD9N76C0Z8ZW6JD&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "rugs-direct.com",
+          "image": "https://cdn.trychannel3.com/ba78baa6-e79f-4f07-a109-9f5fd59a3d97?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=nQ5x",
+          "materials": [
+            "Wool"
+          ],
+          "colors": [
+            "#757376",
+            "#5b595c"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "xRSnG5J",
+          "title": "Claysville Area Rug",
+          "brand": "Boutique Rugs",
+          "priceCents": 10900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/xRSnG5J-l7tt-HE0Wiz?o=01M37RTY0F1Z14TPS2YV673K2Y&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "boutiquerugs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/f4b1caba-036b-4cba-b2b5-7e3f3765923c?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=l7tt",
+          "materials": [
+            "wool"
+          ],
+          "colors": [
+            "#9b8d82",
+            "#beb0a4",
+            "#65574b"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": null,
+            "weight": {
+              "number": 7030,
+              "unit": "g"
+            }
+          }
+        },
+        {
+          "id": "OroIoIz",
+          "title": "Rozel Area Rug",
+          "brand": "Boutique Rugs",
+          "priceCents": 8900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/OroIoIz-l7tt-HE0Wiz?o=01M37HZ5Q60EES4ECA7E35TC8P&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "boutiquerugs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/939e0a25-886d-46d6-bec3-4c48c20209a0?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=l7tt",
+          "materials": [
+            "wool"
+          ],
+          "colors": [
+            "#a08a70",
+            "#baa58f",
+            "#7a6c5a"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 3,
+              "unit": "ft"
+            },
+            "width": {
+              "number": 2,
+              "unit": "ft"
+            },
+            "height": null,
+            "weight": {
+              "number": 2267,
+              "unit": "g"
+            }
+          }
+        },
+        {
+          "id": "QTLXC8a",
+          "title": "Kruse Area Rug",
+          "brand": "Safavieh",
+          "priceCents": 11896,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/QTLXC8a-SqEL-HE0Wiz?o=01M2H37HCT59J96VEBT51V9WZ5&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "raymourflanigan.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/6d2a9d5b-16d9-4cd8-b7b0-f684b79762c8?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=SqEL",
+          "materials": [
+            "100% pure wool"
+          ],
+          "colors": [
+            "#c4d3d3",
+            "#1d5176",
+            "#678a9e"
+          ],
+          "category": "rugs",
+          "dims": {
+            "w": 68.6,
+            "d": 213.4,
+            "h": 213.4
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 84,
+              "unit": "in"
+            },
+            "width": {
+              "number": 27,
+              "unit": "in"
+            },
+            "height": {
+              "number": 84,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "Q1LNevN",
+          "title": "Luna Area Rug",
+          "brand": "Feizy",
+          "priceCents": 5900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/Q1LNevN-8E6I-HE0Wiz?o=01M66R7CCNG8VAH93207KVT7E8&aid=01M6SDYZ6SNYQQVC1VQZ4RF37H",
+          "domain": "1800lighting.com",
+          "image": "https://cdn.trychannel3.com/4d602e69-297b-4a8a-b1b8-bd5421dcd956?aid=01M6SDYZ6SNYQQVC1VQZ4RF37H&mid=8E6I",
+          "materials": [
+            "80% Wool",
+            "20% Cotton"
+          ],
+          "colors": [
+            "#111c2d",
+            "#2f333e"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 9,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 3,
+              "unit": "lb"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

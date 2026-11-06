@@ -1,0 +1,30 @@
+{
+  "picks": [
+    {
+      "slot": "reading-chair",
+      "id": "mlwyIgE",
+      "reason": "Grey, grey, grey polyester upholstery provides a soothing atmosphere.",
+      "by": "ai"
+    },
+    {
+      "slot": "floor-lamp",
+      "id": "3qJV67N",
+      "reason": "Grey, warm red, white iron and metal combination creates a cozy ambiance.",
+      "by": "ai"
+    },
+    {
+      "slot": "side-table",
+      "id": "UFpSgOI",
+      "reason": "Black, white, grey solid wood and pine wood combination adds a touch of elegance.",
+      "by": "ai"
+    },
+    {
+      "slot": "rug",
+      "id": "FK7XzzN",
+      "reason": "Grey, blue, grey polypropylene colours complement the night desk's deep colours.",
+      "by": "ai"
+    }
+  ],
+  "neurons": 9.176850000000059,
+  "at": "2026-11-06T21:59:28.380Z"
+}

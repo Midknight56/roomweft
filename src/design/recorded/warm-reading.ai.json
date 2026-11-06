@@ -1,0 +1,30 @@
+{
+  "picks": [
+    {
+      "slot": "reading-chair",
+      "id": "odVFnbf",
+      "reason": "Soft flannel and warm wood create a cozy reading atmosphere.",
+      "by": "ai"
+    },
+    {
+      "slot": "floor-lamp",
+      "id": "7D6R1cm",
+      "reason": "Warm red hues evoke a sense of comfort and relaxation.",
+      "by": "ai"
+    },
+    {
+      "slot": "side-table",
+      "id": "C5YyOuA",
+      "reason": "Warm red tones add a pop of color to the room, creating a cozy ambiance.",
+      "by": "ai"
+    },
+    {
+      "slot": "rug",
+      "id": "OroIoIz",
+      "reason": "Warm brown hues bring a sense of warmth and comfort to the room.",
+      "by": "ai"
+    }
+  ],
+  "neurons": 9.653475000000071,
+  "at": "2026-11-06T21:59:13.959Z"
+}

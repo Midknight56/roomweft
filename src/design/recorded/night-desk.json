@@ -1,0 +1,1094 @@
+{
+  "style": "night-desk",
+  "capturedAt": "2026-11-06T21:59:28.089Z",
+  "slots": {
+    "reading-chair": {
+      "query": "small charcoal reading chair",
+      "maxPrice": 320,
+      "resultIds": [
+        "d59yCYZ",
+        "XAmX756",
+        "mlwyIgE",
+        "QfXn0rG",
+        "2tMZ4f6",
+        "Fgm5hZa",
+        "kQDWXjy",
+        "gF5O0bO"
+      ],
+      "retrievedAt": 1794002363496,
+      "candidates": [
+        {
+          "id": "d59yCYZ",
+          "title": "Jaxx Midtown Small Classroom Soft Foam Chair - Premium Vinyl Cover",
+          "brand": "Jaxx",
+          "priceCents": 31000,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/d59yCYZ-p1PB-HE0Wiz?o=01KXPE0QJ42FX95JAHFXF5EW7T&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/e3f9516f-48d1-4214-959b-02b423f8ef66?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=p1PB",
+          "materials": [
+            "vinyl",
+            "polyurethane foam",
+            "EPS beads"
+          ],
+          "colors": [
+            "#666668",
+            "#8f8f91"
+          ],
+          "category": "chairs",
+          "dims": {
+            "w": 50.8,
+            "d": 73.7,
+            "h": 53.3
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 29,
+              "unit": "in"
+            },
+            "width": {
+              "number": 20,
+              "unit": "in"
+            },
+            "height": {
+              "number": 21,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "XAmX756",
+          "title": "Bexley Charcoal Bean Bag Chair",
+          "brand": "Rooms To Go",
+          "priceCents": 12800,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/XAmX756-woXq-HE0Wiz?o=01KFTN64X5HEDVSXZGV9Z5Q09Z&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "roomstogo.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/07072342-0c07-47d4-973c-f450049f7d34?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=woXq",
+          "materials": [],
+          "colors": [
+            "#737373",
+            "#585858",
+            "#343434"
+          ],
+          "category": "bean-bag-chairs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "mlwyIgE",
+          "title": "Aspen Charcoal Chair",
+          "brand": "Bob's Discount Furniture",
+          "priceCents": 29900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/mlwyIgE-yAS8-HE0Wiz?o=01KJ0KJNNDA5F0F0C26WG194FK&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "mybobs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/f8d1236c-e8f9-462f-99ba-949e9d96e80d?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=yAS8",
+          "materials": [
+            "Polyester"
+          ],
+          "colors": [
+            "#736d70",
+            "#454043",
+            "#a8a4a6"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 88.9,
+            "d": 96.5,
+            "h": 96.5
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 38,
+              "unit": "in"
+            },
+            "width": {
+              "number": 35,
+              "unit": "in"
+            },
+            "height": {
+              "number": 38,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 67,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "QfXn0rG",
+          "title": "Taylor Charcoal Accent Chair",
+          "brand": "Homelegance",
+          "priceCents": 26900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/QfXn0rG-VvS2-HE0Wiz?o=01M331PABQP9Y15EN5XM508Q0C&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "furniturepick.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/770ec98d-ead4-4bd4-902c-621e12b87d3f?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=VvS2",
+          "materials": [
+            "Plywood frame",
+            "Foam",
+            "Textured polyester upholstery",
+            "Solid wood legs"
+          ],
+          "colors": [
+            "#707172",
+            "#8f9091",
+            "#1c1d1e"
+          ],
+          "category": "chairs",
+          "dims": {
+            "w": 63.5,
+            "d": 63.5,
+            "h": 81.3
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 25,
+              "unit": "in"
+            },
+            "width": {
+              "number": 25,
+              "unit": "in"
+            },
+            "height": {
+              "number": 32,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 22,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "2tMZ4f6",
+          "title": "Modular Bob Charcoal Armless Chair",
+          "brand": "Bob's Discount Furniture",
+          "priceCents": 25000,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/2tMZ4f6-yAS8-HE0Wiz?o=01KJ0SQ4YVSJRB09FS8KR2AE8B&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "mybobs.com",
+          "image": "https://cdn.trychannel3.com/91d8a8ff-39c6-42c0-a7ba-cd64e1fee08f?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=yAS8",
+          "materials": [
+            "Polyester",
+            "Memory Foam",
+            "Sinuous Springs"
+          ],
+          "colors": [
+            "#2c2c2f",
+            "#737477"
+          ],
+          "category": "sectional-sofa-units",
+          "dims": {
+            "w": 94,
+            "d": 88.9,
+            "h": 88.9
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 35,
+              "unit": "in"
+            },
+            "width": {
+              "number": 37,
+              "unit": "in"
+            },
+            "height": {
+              "number": 35,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 22,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "Fgm5hZa",
+          "title": "Aspen Swivel Chair",
+          "brand": "Bob's Discount Furniture",
+          "priceCents": 29900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/Fgm5hZa-yAS8-HE0Wiz?o=01M313ZA1RA79HGQ5K55SADF2J&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "mybobs.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/d8ba68a8-8d32-43ac-a771-6a23fa88aa9a?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=yAS8",
+          "materials": [
+            "Polyester",
+            "Memory Foam"
+          ],
+          "colors": [
+            "#6d666d",
+            "#463f45",
+            "#979297"
+          ],
+          "category": "armchairs",
+          "dims": {
+            "w": 74.9,
+            "d": 76.2,
+            "h": 80
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 30,
+              "unit": "in"
+            },
+            "width": {
+              "number": 29.5,
+              "unit": "in"
+            },
+            "height": {
+              "number": 31.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 48,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "kQDWXjy",
+          "title": "Koda Charcoal Outdoor Arm Chair",
+          "brand": "Rooms To Go",
+          "priceCents": 29999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/kQDWXjy-woXq-HE0Wiz?o=01KFVP2YC7WTJB4D9HJ0DWE700&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "roomstogo.com",
+          "image": "https://cdn.trychannel3.com/807d5571-5658-446d-9a74-7004f5a82861?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=woXq",
+          "materials": [
+            "Teak",
+            "Aluminum",
+            "All‑weather rope"
+          ],
+          "colors": [
+            "#dcd9cc",
+            "#2f2e2c",
+            "#484744"
+          ],
+          "category": "outdoor-chairs",
+          "dims": {
+            "w": 61,
+            "d": 59.1,
+            "h": 75.6
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 23.25,
+              "unit": "in"
+            },
+            "width": {
+              "number": 24,
+              "unit": "in"
+            },
+            "height": {
+              "number": 29.75,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 44.4,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "gF5O0bO",
+          "title": "Leisuremod Zylar Series Charcoal Ergonomic Office Chair Upholstered Guest Side Chair",
+          "brand": "LeisureMod",
+          "priceCents": 16100,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/gF5O0bO-FP7n-HE0Wiz?o=01M3SXY0ME64W8VXCPMXMZ8Q53&aid=01M6SDZ8RF7AM09HCP4GZCQY22",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/12e05e6e-ba3d-4522-b221-7db86eb473d3?aid=01M6SDZ8RF7AM09HCP4GZCQY22&mid=FP7n",
+          "materials": [
+            "polyurethane synthetic leather",
+            "stainless steel",
+            "poplar wood",
+            "foam"
+          ],
+          "colors": [
+            "#444444",
+            "#ffffff",
+            "#606060"
+          ],
+          "category": "office-chairs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 32.5,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        }
+      ]
+    },
+    "floor-lamp": {
+      "query": "brass adjustable floor lamp",
+      "maxPrice": 160,
+      "resultIds": [
+        "JdPx9bX",
+        "ACT32vh",
+        "3qJV67N",
+        "41w1Qh9",
+        "XAoIwpW",
+        "X5Q9YLT",
+        "ee01xwp",
+        "BzzgrjO"
+      ],
+      "retrievedAt": 1794002365207,
+      "candidates": [
+        {
+          "id": "JdPx9bX",
+          "title": "Adjustable Floor Lamp With 360 Degree Swing Arm",
+          "brand": "Lavish Home",
+          "priceCents": 8245,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/JdPx9bX-FP7n-HE0Wiz?o=01KY4T5AKEY52AZ9SNC21KQ9XZ&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/9774fede-d26c-4c8a-a7b3-ffba46789f2d?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=FP7n",
+          "materials": [
+            "brass"
+          ],
+          "colors": [
+            "#a79375",
+            "#bdad95",
+            "#e4dac7"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 55,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "ACT32vh",
+          "title": "Fig Iron Adjustable Floor Lamp (66\")",
+          "brand": "Pottery Barn",
+          "priceCents": 12500,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/ACT32vh-tb6D-HE0Wiz?o=01KDAGYKNR25Q8V3YG34K405NE&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "livingspaces.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/c9c3a4f3-a78e-4026-bc10-880b245c6056?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=tb6D",
+          "materials": [
+            "iron",
+            "linen"
+          ],
+          "colors": [
+            "#cfc7bd",
+            "#b1a798",
+            "#5f543f"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": null,
+            "weight": {
+              "number": 10.7,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "3qJV67N",
+          "title": "Zinnia 63 in. Brass Gold Industrial Minimalist 1-Light Height-Adjustable Iron Pharmacy LED Floor Lamp",
+          "brand": "Jonathan Y",
+          "priceCents": 11099,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/3qJV67N-FP7n-HE0Wiz?o=01KY89QCZ5DM2345JZAQJ5N3WP&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/0fe35163-822c-40cd-93ab-1c52ecdd5362?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=FP7n",
+          "materials": [
+            "Iron",
+            "Metal"
+          ],
+          "colors": [
+            "#9c9382",
+            "#4c3918",
+            "#f6efd9"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 48.3,
+            "d": 25.4,
+            "h": 160
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 10,
+              "unit": "in"
+            },
+            "width": {
+              "number": 19,
+              "unit": "in"
+            },
+            "height": {
+              "number": 63,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "41w1Qh9",
+          "title": "Avery Floor Lamp",
+          "brand": "Brightech",
+          "priceCents": 6600,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/41w1Qh9-K6RA-HE0Wiz?o=01M1AZ4M8SG9197DEB8Z92YQB7&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "macys.com",
+          "image": "https://cdn.trychannel3.com/c1de8f6f-10c0-4c3d-907b-ebdc17adce11?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=K6RA",
+          "materials": [
+            "Metal"
+          ],
+          "colors": [],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": {
+              "number": 63,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "XAoIwpW",
+          "title": "Milburn Summit Brass Floor Lamp",
+          "brand": "Rooms To Go",
+          "priceCents": 13999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/XAoIwpW-woXq-HE0Wiz?o=01KJ7M3X191XH9XN56BC6R8KM6&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "roomstogo.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/f30083ee-d24f-445f-b574-b831808e1974?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=woXq",
+          "materials": [],
+          "colors": [
+            "#454037",
+            "#201f1f",
+            "#c7c4bc"
+          ],
+          "category": "floor-lamps",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "X5Q9YLT",
+          "title": "Devon Floor Lamp with Metal Shade",
+          "brand": "Meyer",
+          "priceCents": 10941,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/X5Q9YLT-FP7n-HE0Wiz?o=01KY6QWJ8MN1A61DXFJSQCE4AG&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "homedepot.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/fca1a028-ca0b-4888-b07f-c6998d3e5c62?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=FP7n",
+          "materials": [
+            "Metal"
+          ],
+          "colors": [
+            "#947e4d",
+            "#cabf9f",
+            "#ae9d6c"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 82.6,
+            "d": 33,
+            "h": 157.5
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 13,
+              "unit": "in"
+            },
+            "width": {
+              "number": 32.5,
+              "unit": "in"
+            },
+            "height": {
+              "number": 62,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "ee01xwp",
+          "title": "Thalia Adjustable Arm Floor Lamp",
+          "brand": "Adesso",
+          "priceCents": 7491,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/ee01xwp-Z87s-HE0Wiz?o=01M1N2MD0J3WW9C1V8BYFPTJH9&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "kohls.com",
+          "image": "https://cdn.trychannel3.com/77d16427-4bc2-4d3d-9c41-3ab8d5693982?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=Z87s",
+          "materials": [
+            "metal"
+          ],
+          "colors": [
+            "#d6cec4",
+            "#bcb2a7",
+            "#50442c"
+          ],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 55.9,
+            "d": 55.9,
+            "h": 148.6
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 22,
+              "unit": "in"
+            },
+            "width": {
+              "number": 22,
+              "unit": "in"
+            },
+            "height": {
+              "number": 58.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 6.6,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "BzzgrjO",
+          "title": "Briggs 65 in. Brass Gold Floor Lamp",
+          "brand": "Safavieh",
+          "priceCents": 14600,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/BzzgrjO-Er7U-HE0Wiz?o=01M2C3SJ3MQJBKXHSC9PMVJ6VW&aid=01M6SDZAE4WN40PNVSJKFKVTMP",
+          "domain": "enchantedhome.com",
+          "image": "https://cdn.trychannel3.com/eede962c-e636-42b8-9bca-864b4447ff16?aid=01M6SDZAE4WN40PNVSJKFKVTMP&mid=Er7U",
+          "materials": [
+            "metal"
+          ],
+          "colors": [],
+          "category": "floor-lamps",
+          "dims": {
+            "w": 68.6,
+            "d": 25.4,
+            "h": 165.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 10,
+              "unit": "in"
+            },
+            "width": {
+              "number": 27,
+              "unit": "in"
+            },
+            "height": {
+              "number": 65,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 6287,
+              "unit": "g"
+            }
+          }
+        }
+      ]
+    },
+    "side-table": {
+      "query": "small dark wood side table",
+      "maxPrice": 120,
+      "resultIds": [
+        "q1kL3Tx",
+        "Za5Lhef",
+        "UFpSgOI",
+        "yBmsuha",
+        "VwLnByM",
+        "LOCha2e",
+        "zQahXcG",
+        "yQkEpdG"
+      ],
+      "retrievedAt": 1794002366553,
+      "candidates": [
+        {
+          "id": "q1kL3Tx",
+          "title": "Silas Round Wood Side Table By Modway",
+          "brand": "Modway",
+          "priceCents": 8790,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/q1kL3Tx-p1PB-HE0Wiz?o=01M1RQVA5PZ8EPJ8WESE32G914&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/9dc41072-8b4d-4003-9f45-639d297bc8ec?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=p1PB",
+          "materials": [
+            "mango wood",
+            "veneer"
+          ],
+          "colors": [
+            "#181818",
+            "#343434"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": {
+              "number": 16,
+              "unit": "in"
+            },
+            "height": {
+              "number": 18,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "Za5Lhef",
+          "title": "Mavina Mango Wood Side Table By Modway",
+          "brand": "Modway",
+          "priceCents": 9690,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/Za5Lhef-p1PB-HE0Wiz?o=01KY2PY414M6H9SN8NSAHDP5VV&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/b30e057a-f30f-4425-89e8-0bfbe3076e41?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=p1PB",
+          "materials": [
+            "Mango Wood"
+          ],
+          "colors": [
+            "#2a2a2a",
+            "#131313",
+            "#555555"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": {
+              "number": 18,
+              "unit": "in"
+            },
+            "height": null,
+            "weight": null
+          }
+        },
+        {
+          "id": "UFpSgOI",
+          "title": "Classic Square Side Table",
+          "brand": "Plank Beam",
+          "priceCents": 6900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/UFpSgOI-640d-HE0Wiz?o=01KBPAHSAJ60CW7AH0F36SJBJ6&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "plankandbeam.com",
+          "image": "https://cdn.trychannel3.com/a063ecae-0695-4bfa-98cd-8296411654ee?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=640d",
+          "materials": [
+            "Solid Wood",
+            "Pine Wood"
+          ],
+          "colors": [
+            "#0f1013",
+            "#ffffff"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "yBmsuha",
+          "title": "Storage Side Table",
+          "brand": "Safavieh",
+          "priceCents": 8249,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/yBmsuha-Z87s-HE0Wiz?o=01M1G8TZFJW4SEPFWMW8GMT65K&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "kohls.com",
+          "image": "https://cdn.trychannel3.com/20f11965-1570-4f8e-ac7c-e63c57691d24?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=Z87s",
+          "materials": [
+            "Pine",
+            "Rattan"
+          ],
+          "colors": [
+            "#221a18",
+            "#fdfdfc",
+            "#5b4c44"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 33,
+            "d": 40.4,
+            "h": 70.1
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 15.9,
+              "unit": "in"
+            },
+            "width": {
+              "number": 13,
+              "unit": "in"
+            },
+            "height": {
+              "number": 27.6,
+              "unit": "in"
+            },
+            "weight": null
+          }
+        },
+        {
+          "id": "VwLnByM",
+          "title": "Mid-Century Modern Square Side Table",
+          "brand": "Plank Beam",
+          "priceCents": 7900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/VwLnByM-640d-HE0Wiz?o=01KBP7SDJY9P6Z0SARS6MY7W4M&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "plankandbeam.com",
+          "image": "https://cdn.trychannel3.com/ad788990-f4d8-451f-bb99-6a65ae463fb9?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=640d",
+          "materials": [
+            "Solid Wood",
+            "Pine Wood"
+          ],
+          "colors": [
+            "#241f1c",
+            "#979089",
+            "#e6e0d4"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "LOCha2e",
+          "title": "Elina Side Table",
+          "brand": "Linon",
+          "priceCents": 6398,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/LOCha2e-Qqxu-HE0Wiz?o=01M3J854ZXHNQJ0A396TTYBMN1&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/ed12a363-927e-4af8-ace2-796fd8a36da8?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=Qqxu",
+          "materials": [
+            "solid wood"
+          ],
+          "colors": [
+            "#e5e1d6"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "zQahXcG",
+          "title": "Omara 1 Shelf Side Table",
+          "brand": "Safavieh",
+          "priceCents": 11900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/zQahXcG-BsaX-HE0Wiz?o=01M1DB7MH3SW53VDVR1V1THNBM&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "walmart.com",
+          "image": "https://cdn.trychannel3.com/08f869d1-255b-441e-a821-6fd31531492b?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=BsaX",
+          "materials": [
+            "Pine",
+            "Veneer"
+          ],
+          "colors": [
+            "#252527",
+            "#ffffff",
+            "#737579"
+          ],
+          "category": "end-tables",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "yQkEpdG",
+          "title": "Mid-century Modern Rectangular Side Table with Shelf",
+          "brand": "Songmics",
+          "priceCents": 4899,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/yQkEpdG-p1PB-HE0Wiz?o=01M22DK7KKZTBNQJVPMBKG4A4R&aid=01M6SDZBRCE1QTFK8RHE71FG59",
+          "domain": "bestbuy.com",
+          "image": "https://cdn.trychannel3.com/6d728675-5031-41a3-8862-8e0b66384c1a?aid=01M6SDZBRCE1QTFK8RHE71FG59&mid=p1PB",
+          "materials": [
+            "Rubberwood",
+            "Particleboard"
+          ],
+          "colors": [
+            "#e6dcd3",
+            "#222221",
+            "#3b3835"
+          ],
+          "category": "end-tables",
+          "dims": {
+            "w": 39.9,
+            "d": 30,
+            "h": 54.6
+          },
+          "dimsRaw": {
+            "length": {
+              "number": 11.8,
+              "unit": "in"
+            },
+            "width": {
+              "number": 15.7,
+              "unit": "in"
+            },
+            "height": {
+              "number": 21.5,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 8.6,
+              "unit": "lb"
+            }
+          }
+        }
+      ]
+    },
+    "rug": {
+      "query": "navy area rug 5x7",
+      "maxPrice": 200,
+      "resultIds": [
+        "EGe8dFx",
+        "Iptjl1f",
+        "Azj0mr5",
+        "FK7XzzN",
+        "g2odHDu",
+        "pZ0bcJj",
+        "jJDlL61",
+        "T9Zwh1S"
+      ],
+      "retrievedAt": 1794002368089,
+      "candidates": [
+        {
+          "id": "EGe8dFx",
+          "title": "Allur Area Rug",
+          "brand": "Nourison",
+          "priceCents": 8800,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/EGe8dFx-lULw-HE0Wiz?o=01M3DXTXPSRKQXAJED0PSM740S&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "afastores.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/e71feeb2-d729-4f7d-be67-ed76adcf454d?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=lULw",
+          "materials": [
+            "100% Polypropylene"
+          ],
+          "colors": [
+            "#384765",
+            "#9fa291",
+            "#8d877a"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": null,
+            "weight": {
+              "number": 11,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "Iptjl1f",
+          "title": "Allur Area Rug",
+          "brand": "Nourison",
+          "priceCents": 5172,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/Iptjl1f-zaO3-HE0Wiz?o=01M3NV3XBSDSY5GJYM66CF5B42&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "1stopbedrooms.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/adcc16e6-97f1-415c-8a7c-5460fde96a01?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=zaO3",
+          "materials": [
+            "polypropylene"
+          ],
+          "colors": [
+            "#2b364d",
+            "#587278",
+            "#9c9b89"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "Azj0mr5",
+          "title": "Safavieh Polypropylene Navy/Fuchsia Rectangular Area rug",
+          "brand": "Safavieh",
+          "priceCents": 10335,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/Azj0mr5-Qqxu-HE0Wiz?o=01M3QM9Z8K4G4M1SW3QMW98R0Q&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "lowes.com",
+          "image": "https://cdn.trychannel3.com/c93b00e8-11e1-4513-ba27-46a289aa0a9b?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=Qqxu",
+          "materials": [
+            "polypropylene"
+          ],
+          "colors": [
+            "#a4a1a5",
+            "#4c616f",
+            "#788c95"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 7.5,
+              "unit": "ft"
+            },
+            "width": {
+              "number": 5.25,
+              "unit": "ft"
+            },
+            "height": null,
+            "weight": {
+              "number": 18,
+              "unit": "lb"
+            }
+          }
+        },
+        {
+          "id": "FK7XzzN",
+          "title": "Capel Timeless 160 Area Rug",
+          "brand": "Capel",
+          "priceCents": 6545,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/FK7XzzN-l1XT-HE0Wiz?o=01M3253867J8ZKTQQEBV7S6TFH&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "rugstudio.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/03090590-c4e9-43c6-8677-0943df1a6198?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=l1XT",
+          "materials": [
+            "100% Polypropylene"
+          ],
+          "colors": [
+            "#1d2f4e",
+            "#c7cfc7",
+            "#647381"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "g2odHDu",
+          "title": "Any Day Matinee Damascus Navy Area Rug",
+          "brand": "Joy Carpets",
+          "priceCents": 13999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/g2odHDu-l1XT-HE0Wiz?o=01M32DP6A6BA04Q2BZEDE0Q34P&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "rugstudio.com",
+          "image": "https://cdn.trychannel3.com/cleaned/v1/a8a5059a-764d-4566-8777-4a0677b2626f?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=l1XT",
+          "materials": [
+            "Premium WearOn Nylon"
+          ],
+          "colors": [
+            "#202639"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": null
+        },
+        {
+          "id": "pZ0bcJj",
+          "title": "Jolene Contemporary Washable Area Rug",
+          "brand": "Boutique Rugs",
+          "priceCents": 3900,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/pZ0bcJj-l7tt-HE0Wiz?o=01M2DNQHPJ6ADZ813HXABC4ZAC&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "boutiquerugs.com",
+          "image": "https://cdn.trychannel3.com/cf93b7c2-e82a-431f-92d2-5590a6673ab2?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=l7tt",
+          "materials": [
+            "100% Polyester"
+          ],
+          "colors": [
+            "#202b41",
+            "#3a455b"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": null,
+            "width": null,
+            "height": null,
+            "weight": {
+              "number": 970,
+              "unit": "g"
+            }
+          }
+        },
+        {
+          "id": "jJDlL61",
+          "title": "Garvee Washable Non Slip Modern Area Rugs",
+          "brand": "GARVEE",
+          "priceCents": 4599,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/jJDlL61-BCUF-HE0Wiz?o=01M2SFGVDG9G2RQ324N4PJ1G00&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "garvee.ca",
+          "image": "https://cdn.trychannel3.com/085fb1af-8c24-494a-ba00-0f271a7b6401?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=BCUF",
+          "materials": [
+            "polyester",
+            "TPR (Thermoplastic Rubber)"
+          ],
+          "colors": [
+            "#ab917b",
+            "#c3b2a3",
+            "#6a503c"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 7,
+              "unit": "ft"
+            },
+            "width": {
+              "number": 5,
+              "unit": "ft"
+            },
+            "height": null,
+            "weight": null
+          }
+        },
+        {
+          "id": "T9Zwh1S",
+          "title": "Supersoft Navy 4' x 6' Oval Area Rug",
+          "brand": "Jonathan Y",
+          "priceCents": 13999,
+          "currency": "USD",
+          "url": "https://buy.trychannel3.com/T9Zwh1S-KojF-HE0Wiz?o=01M62VAHJHH0WR3X6DVZ1T7WC8&aid=01M6SDZD8ERC7QFFZVZC7HTCWH",
+          "domain": "menards.com",
+          "image": "https://cdn.trychannel3.com/10d5966f-69e5-4d64-9fde-97b58d188fdf?aid=01M6SDZD8ERC7QFFZVZC7HTCWH&mid=KojF",
+          "materials": [
+            "polypropylene"
+          ],
+          "colors": [
+            "#1c2836"
+          ],
+          "category": "rugs",
+          "dims": null,
+          "dimsRaw": {
+            "length": {
+              "number": 6,
+              "unit": "ft"
+            },
+            "width": {
+              "number": 4,
+              "unit": "ft"
+            },
+            "height": {
+              "number": 0.4,
+              "unit": "in"
+            },
+            "weight": {
+              "number": 8.6,
+              "unit": "lb"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

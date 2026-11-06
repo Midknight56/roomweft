@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "roomweft",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "account_id": "9fc5652f61b1f60eb20e1d9a2ef70041",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "roomweft", "database_id": "0be9934c-9bdb-4774-9051-fea4a695e397", "migrations_dir": "migrations" },
+    // The shared ledger holds every hackathon app's Workers AI calls so the account stays inside the free 10,000 neurons a day.
+    { "binding": "LEDGER", "database_name": "hackathon-ledger", "database_id": "023377a8-ad19-413c-b769-d195d05427b3" }
+  ],
+  "observability": { "enabled": false },
+  "vars": { "PUBLIC_ORIGIN": "https://roomweft.midknight-labs.workers.dev" }
+}
