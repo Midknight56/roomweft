@@ -1,4 +1,5 @@
 import type { ApiError } from '../shared/api-types';
+export const CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://cdn.trychannel3.com; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://www.sandbox.paypal.com";
 export function errorResponse(status: number, code: string, error: string): Response {
   return Response.json({ error, code } satisfies ApiError, { status });
 }
@@ -15,7 +16,7 @@ export function finish(response: Response, cookie?: string): Response {
   result.headers.set('Referrer-Policy', 'same-origin');
   result.headers.set('Cache-Control', 'no-store');
   if (result.headers.get('content-type')?.includes('text/html')) {
-    result.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://cdn.trychannel3.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://www.sandbox.paypal.com");
+    result.headers.set('Content-Security-Policy', CONTENT_SECURITY_POLICY);
     result.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   }
   return result;

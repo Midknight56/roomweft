@@ -2,10 +2,11 @@ import { chromium } from 'playwright';
 import { build } from 'esbuild';
 import { readFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { CONTENT_SECURITY_POLICY } from '../http/response.ts';
 await mkdir('out/page-check', { recursive: true });
 const bundle = await build({ stdin: { contents: "export * from './src/shared/room'; export * from './src/shared/fit'; export * from './src/client/helpers';", resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'esm' });
 const { OWNED_ITEMS, ROOM, DOOR, WINDOW, STYLES, layoutOf, checkFit } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
-const sceneBundle = await build({ entryPoints: ['src/client/scene.ts'], bundle: true, write: false, format: 'esm' });
+const sceneBundle = await build({ stdin: { contents: "export * from './src/client/scene'; export * from './src/client/meshes'; export { Box3, Vector3 } from 'three';", resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm' });
 const pick = (id, price, w, d, h) => ({ id, title: ({ 'reading-chair': 'Linen reading chair', 'floor-lamp': 'Warm paper floor lamp', 'side-table': 'Small oak side table', rug: 'Woven wool rug' })[id], priceCents: price, currency: 'USD', url: 'https://example.com/item', domain: 'example.com', colors: ['#B98764'], materials: ['Wood', 'Linen'], dims: { w, d, h } });
 const source = { query: 'small room', maxPrice: 30000, resultIds: ['chair'], retrievedAt: 1793952000000, cached: true, origin: 'recorded' };
 function makeDesign(pass = false) {
@@ -21,11 +22,13 @@ let lastDesignBody; let design = makeDesign(); let quote; let receipt; let moveR
   let priceChange = false;
   let pageError; const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 }); page.on('pageerror', error => { pageError = error; });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 }); page.on('pageerror', error => { pageError = error; }); page.on('console', message => { if (message.text().includes('Content Security Policy')) pageError = new Error(message.text()); });
   await page.route('**/*', async route => {
     const request = route.request(); const url = new URL(request.url()); const path = url.pathname;
     const json = value => route.fulfill({ contentType: 'application/json', body: JSON.stringify(value) });
     if (url.hostname !== 'room.test') return route.abort();
+    if (path === '/models/manifest.json') return route.fulfill({ contentType: 'application/json', body: await readFile('public/models/manifest.json') });
+    if (/^\/models\/[a-z-]+\.glb$/.test(path)) return route.fulfill({ contentType: 'model/gltf-binary', body: await readFile(`public${path}`) });
     if (path === '/scene-check.js') return route.fulfill({ contentType: 'text/javascript', body: sceneBundle.outputFiles[0].text });
     if (path === '/api/scenes') return scenesFail ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The room service is unavailable.', code: 'offline' }) }) : json({});
     if (path === '/api/status') return json({ search: { live: true, remainingToday: 10 }, ai: { live: false, remainingNeuronsToday: 0 }, sandbox: { live: true }, visitor: { liveDesignsLeft: 3, checkoutsLeft: 6, refundsLeft: 6 } });
@@ -48,10 +51,46 @@ try {
     if (path.startsWith('/api/receipt/')) return json(receipt ?? { quote, orderId: null, captureId: null, capturedCents: 0, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: quote.lines.map(line => ({ roomObjectId: line.roomObjectId, status: 'paid' })), events: [] });
     if (path === '/api/refund') { receipt.lines[0].refund = { state: 'completed', amountCents: 21000, paypalId: 'test-refund' }; receipt.plan[0].status = 'returned'; return json({ id: 'test-refund-record', quoteId: quote.id, lineId: receipt.lines[0].lineId, amountCents: 21000, state: 'completed', paypalId: 'test-refund' }); }
     const files = { '/': ['public/index.html', 'text/html'], '/app.js': ['public/app.js', 'text/javascript'], '/styles.css': ['public/styles.css', 'text/css'], '/favicon.svg': ['public/favicon.svg', 'image/svg+xml'] };
-    if (files[path]) return route.fulfill({ contentType: files[path][1], body: await readFile(files[path][0]) });
+    if (files[path]) return route.fulfill({ contentType: files[path][1], body: await readFile(files[path][0]), headers: path === '/' ? { 'Content-Security-Policy': CONTENT_SECURITY_POLICY } : undefined });
     return route.fulfill({ status: 404, body: '' });
   });
   await page.goto('http://room.test/'); await page.getByRole('button', { name: 'Swap for one that fits', exact: true }).waitFor();
+  await page.waitForFunction(() => window.__roomweftReady === true);
+  const modelChecks = await page.evaluate(async saved => {
+    const { furniture, dispose, RoomScene, Box3 } = await import('/scene-check.js');
+    const manifest = await (await fetch('/models/manifest.json')).json();
+    const loadedKinds = [];
+    for (const kind of manifest.kinds) {
+      const id = ({armchair: 'reading-chair', 'arc-lamp': 'floor-lamp', 'square-table': 'side-table'})[kind] ?? kind;
+      const title = kind === 'arc-lamp' ? 'Emry Arc Floor Lamp' : kind === 'side-table' ? 'Chiro Round Wood Side Table' : '';
+      let root;
+      await new Promise(resolve => { root = furniture({ id, kind, x: 0, z: 0, rot: 0, w: 32, d: 119, h: 173, source: 'slot', dims: 'verified', locked: false }, '#b98764', resolve, title); });
+      if (root.userData.modelKind !== kind) throw new Error(`Model failed to load: ${kind}`);
+      loadedKinds.push(root.userData.modelKind); dispose(root);
+    }
+    const host = document.createElement('div'); host.style.cssText = 'width:800px;height:600px;position:fixed;left:-900px'; document.body.append(host);
+    const view = new RoomScene(host);
+    try {
+      view.update(saved, null);
+      await new Promise(resolve => { const poll = () => [...view.objects].every(([id, root]) => id === 'rug' || root.userData.modelKind) ? resolve() : setTimeout(poll, 20); poll(); });
+      const camera = view.walk.position;
+      for (const [id, root] of view.objects) {
+        const bounds = new Box3();
+        root.traverse(child => { if (child.isMesh) bounds.union(new Box3().setFromObject(child)); });
+        if (bounds.containsPoint(camera)) throw new Error(`Walk starts inside ${id}`);
+        if (id !== 'rug' && Math.abs(bounds.min.y) > .01) throw new Error(`Model off floor: ${id}`);
+      }
+      return { loadedKinds, walkStart: camera.toArray(), grounded: true };
+    } finally { view.destroy(); host.remove(); }
+  }, design);
+  assert.equal(modelChecks.loadedKinds.length, 8);
+  console.log(JSON.stringify({ models: modelChecks }));
+  for (const mode of ['Overview', 'Plan', 'Walk']) {
+    await page.getByRole('button', { name: `${mode} view`, exact: true }).click();
+    await page.waitForFunction(() => window.__roomweftReady === true); await page.waitForTimeout(750);
+    await page.screenshot({ path: `out/page-check/review-models-${mode.toLowerCase()}.png` });
+  }
+  await page.getByRole('button', { name: 'Overview view', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: 'Freeze quote', exact: true }).isDisabled(), true);
   assert.equal(await page.getByTestId('style-calm-studio').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.getByTestId('budget').inputValue(), '900');
@@ -102,6 +141,7 @@ try {
   }), true, 'room view is brought back');
   assert.equal(await stickyLink.isVisible(), true, 'sticky link visible again when room is back');
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: 'out/page-check/review-walkway-overview.png' });
   await page.screenshot({ path: 'out/page-check/review-desktop.png' });
   await page.getByRole('button', { name: 'Swap for one that fits', exact: true }).click(); await page.getByText('This chair clears the door and saves $40.00.').waitFor();
   assert.equal(design.fit.passes, true, JSON.stringify(design.fit.messages));
@@ -125,7 +165,7 @@ try {
   assert.equal(await page.getByRole('combobox', { name: 'Select movable furniture' }).isVisible(), true, 'plan tools visible when open');
   await page.getByRole('combobox', { name: 'Select movable furniture' }).selectOption('reading-chair'); await page.getByRole('button', { name: 'Rotate ↻', exact: true }).click(); await page.waitForTimeout(100); assert.equal(design.slots[0].placement.rot, 0);
   await page.screenshot({ path: 'out/page-check/review-plan.png' });
-  await page.getByRole('button', { name: 'Walk view', exact: true }).click(); await page.waitForTimeout(750); await page.screenshot({ path: 'out/page-check/review-walk.png' }); await page.locator('#room canvas').focus(); await page.keyboard.press('ArrowUp'); await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Walk view', exact: true }).click(); await page.waitForTimeout(750); await page.screenshot({ path: 'out/page-check/review-walkway-walk.png' }); await page.screenshot({ path: 'out/page-check/review-walk.png' }); await page.locator('#room canvas').focus(); await page.keyboard.press('ArrowUp'); await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Freeze quote', exact: true }).click(); await page.getByText('Frozen total $430.00').waitFor();
   await page.getByTestId('pay-card').click(); await page.getByText('Capture card-capture').waitFor();
   await page.getByTestId('receipt').getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
@@ -192,11 +232,22 @@ try {
         const sprites = []; view.pieces.traverse(child => { if (child.isSprite && child.visible) sprites.push(child.name); });
         const returned = view.objects.get('reading-chair');
         const opacity = []; returned.traverse(child => { if (child.isMesh) opacity.push(child.material.opacity); });
-        return { mode, sprites, opacity, outlines: view.regions.children.map(child => child.name) };
+        const edges = view.regions.children.filter(child => child.userData.walkwayEdge);
+        const planDots = view.regions.children.filter(child => child.userData.walkwayPlan);
+        const floorDots = view.regions.children.filter(child => child.userData.walkwayDot);
+        return { mode, sprites, opacity, outlines: view.regions.children.map(child => child.name), walkwayEdges: edges.length, visibleWalkwayEdges: edges.filter(child => child.visible).length, planDots: planDots.length, visiblePlanDots: planDots.filter(child => child.visible).length, floorDots: floorDots.length, visibleFloorDots: floorDots.filter(child => child.visible).length, floorDotRadius: floorDots[0]?.geometry.parameters.radius, floorDotDepthTest: floorDots[0]?.material.depthTest };
       });
     } finally { view.destroy(); host.remove(); }
   }, design);
   for (const status of statuses) {
+    assert.ok(status.walkwayEdges > 0, `${status.mode} has walkway edge meshes`);
+    assert.equal(status.visibleWalkwayEdges > 0, status.mode !== 'Plan', `${status.mode} walkway edge visibility`);
+    assert.ok(status.planDots > 0, `${status.mode} has Plan dots`);
+    assert.equal(status.visiblePlanDots > 0, status.mode === 'Plan', `${status.mode} Plan dot visibility`);
+    assert.ok(status.floorDots > 0, `${status.mode} has overview and Walk dots`);
+    assert.equal(status.visibleFloorDots > 0, status.mode !== 'Plan', `${status.mode} floor dot visibility`);
+    assert.equal(status.floorDotRadius, 4, `${status.mode} floor dot radius`);
+    assert.equal(status.floorDotDepthTest, true, `${status.mode} floor dots are hidden by furniture`);
     assert.equal(status.sprites.includes('Fit unverified'), status.mode === 'Plan', `${status.mode} unverified sprite`);
     assert.equal(status.sprites.includes('Returned'), status.mode === 'Plan', `${status.mode} returned sprite`);
     assert.ok(status.opacity.length && status.opacity.every(value => value === .3), 'returned piece stays translucent');

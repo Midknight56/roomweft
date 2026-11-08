@@ -73,7 +73,8 @@ describe('worker routes', () => {
   it('adds HTML security headers and does not allow PayPal script or connections', async () => {
     const { call } = fixture(); const response = await call('/');
     const csp = response.headers.get('content-security-policy')!;
-    expect(csp).toContain("script-src 'self';"); expect(csp).toContain("connect-src 'self';");
+    expect(csp).toContain("script-src 'self';"); expect(csp).toContain("img-src 'self' data: blob: https://cdn.trychannel3.com;"); expect(csp).toContain("connect-src 'self' blob:;");
+    expect(csp.match(/script-src[^;]*/)?.[0]).toBe("script-src 'self'");
     expect(csp).toContain('https://cdn.trychannel3.com'); expect(csp).toContain('https://www.sandbox.paypal.com'); expect(csp).not.toContain('navigate-to');
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');

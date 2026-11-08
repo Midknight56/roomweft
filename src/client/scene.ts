@@ -11,7 +11,7 @@ import { roomDoor, doorArc, setDoorMode } from './door';
 import { FrameReadiness } from './return-state';
 import { planFrustum } from './plan-framing';
 import { floorOutline } from './floor-status';
-import { pathDots, walkwayStripSegments } from './walkway-strip';
+import { pathDots, walkwayEdgeSegments, walkwayStripSegments } from './walkway-strip';
 
 export type Mode = 'Overview' | 'Plan' | 'Walk';
 export class RoomScene {
@@ -118,7 +118,7 @@ export class RoomScene {
     for (const item of this.layout) {
       const slot = design.slots.find(slot => slot.slot === item.id); const colour = slot?.pick?.colors[0] ?? (item.source === 'owned' ? '#A67E56' : theme.thread);
       let loaded = (): void => {}; models.push(new Promise<void>(resolve => { loaded = resolve; }));
-      const root = furniture(item, /^#[\da-f]{6}$/i.test(colour) ? colour : theme.thread, loaded);
+      const root = furniture(item, /^#[\da-f]{6}$/i.test(colour) ? colour : theme.thread, loaded, slot?.pick?.title);
       if (receipt?.plan.some(line => line.roomObjectId === item.id && line.status === 'returned')) { root.traverse(child => { if (child instanceof THREE.Mesh) { const material = (child.material as THREE.MeshStandardMaterial).clone(); material.transparent = true; material.opacity = .3; child.material = material; } }); const returned = tag('Returned', theme.thread); returned.position.y = item.h + 34; root.add(returned); root.userData.returned = true; }
       this.objects.set(item.id, root); this.pieces.add(root);
     }
@@ -150,15 +150,37 @@ export class RoomScene {
           dotMesh.renderOrder = 4;
           dotMesh.userData.walkwayPlan = true;
           this.regions.add(dotMesh);
+
+          const floorDotMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(4, 24),
+            new THREE.MeshBasicMaterial({ color: target.reachable ? theme.ink : theme.alarm, depthTest: true, side: THREE.DoubleSide }), dots.length);
+          dots.forEach((dot, index) => {
+            dummy.position.set(dot.x, 1.6, dot.z);
+            dummy.rotation.x = -Math.PI / 2;
+            dummy.updateMatrix();
+            floorDotMesh.setMatrixAt(index, dummy.matrix);
+          });
+          floorDotMesh.instanceMatrix.needsUpdate = true;
+          floorDotMesh.renderOrder = 2;
+          floorDotMesh.userData.walkwayFloor = true;
+          floorDotMesh.userData.walkwayDot = true;
+          this.regions.add(floorDotMesh);
         }
-        const stripColor = target.reachable ? '#FFF4DC' : theme.alarm;
-        const stripOpacity = target.reachable ? 0.42 : 0.25;
-        for (const segment of walkwayStripSegments(path, 76)) {
+        const stripColor = target.reachable ? theme.moss : theme.alarm;
+        const stripOpacity = target.reachable ? 0.38 : 0.25;
+        const segments = walkwayStripSegments(path, 76);
+        for (const segment of segments) {
           const strip = new THREE.Mesh(new THREE.PlaneGeometry(segment.width, segment.depth),
             new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: stripOpacity, depthWrite: false, side: THREE.DoubleSide }));
           strip.rotation.x = -Math.PI / 2; strip.position.set(segment.x, 1.3, segment.z);
           strip.renderOrder = 1; strip.userData.walkwayFloor = true;
           this.regions.add(strip);
+        }
+        for (const edge of walkwayEdgeSegments(path, 76, 5)) {
+          const mesh = new THREE.Mesh(new THREE.PlaneGeometry(edge.width, edge.depth),
+            new THREE.MeshBasicMaterial({ color: target.reachable ? theme.ink : theme.alarm, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+          mesh.rotation.x = -Math.PI / 2; mesh.position.set(edge.x, 1.4, edge.z);
+          mesh.renderOrder = 1; mesh.userData.walkwayFloor = true; mesh.userData.walkwayEdge = true;
+          this.regions.add(mesh);
         }
       }
     }

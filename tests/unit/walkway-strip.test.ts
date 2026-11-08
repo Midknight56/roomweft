@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { WalkwayTarget } from '../../src/shared/fit';
-import { pathDots, walkwayStripSegments } from '../../src/client/walkway-strip';
+import { pathDots, walkwayEdgeSegments, walkwayStripSegments } from '../../src/client/walkway-strip';
+
+describe('walkway edge segments', () => {
+  it('places two 5 cm edges along each segment long side', () => {
+    expect(walkwayEdgeSegments([{ x: 100, z: 40 }, { x: 200, z: 40 }])).toEqual([
+      { x: 150, z: 4.5, width: 100, depth: 5 },
+      { x: 150, z: 75.5, width: 100, depth: 5 },
+    ]);
+    expect(walkwayEdgeSegments([{ x: 60, z: 100 }, { x: 60, z: 250 }])).toEqual([
+      { x: 24.5, z: 175, width: 5, depth: 150 },
+      { x: 95.5, z: 175, width: 5, depth: 150 },
+    ]);
+    expect(walkwayEdgeSegments([{ x: 0, z: 0 }, { x: 100, z: 0 }])).toHaveLength(2);
+  });
+});
 
 describe('walkway strip segments', () => {
   it('draws nothing and does not throw for a target with no path field', () => {

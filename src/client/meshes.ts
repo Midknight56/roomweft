@@ -53,26 +53,40 @@ function modelKinds(): Promise<Set<string>> {
     .catch(() => new Set<string>());
   return availableKinds;
 }
-export function furniture(item: Footprint, colour: string, loaded: () => void = () => {}): THREE.Group {
+export function modelKindFor(itemId: string, kind: string, title = ''): string | null {
+  if (itemId === 'rug' || kind === 'rug') return null;
+  if (itemId === 'floor-lamp') return /\barc\b/i.test(title) ? 'arc-lamp' : 'floor-lamp';
+  if (itemId === 'side-table') return /\b(round|drum|pedestal)\b/i.test(title) ? 'side-table' : 'square-table';
+  const byId: Record<string, string> = { 'reading-chair': 'armchair', 'desk-chair': 'desk-chair', desk: 'desk', bookshelf: 'bookshelf' };
+  return byId[itemId] ?? ({ 'reading-chair': 'armchair', chair: 'desk-chair', 'floor-lamp': 'floor-lamp', lamp: 'floor-lamp', table: 'side-table' } as Record<string, string>)[kind] ?? kind;
+}
+export function furniture(item: Footprint, colour: string, loaded: () => void = () => {}, title?: string): THREE.Group {
   const root = new THREE.Group(); root.position.set(item.x, 0, item.z); root.rotation.y = item.rot * Math.PI / 180; root.userData.itemId = item.id;
   const visual = proxy(item.kind, colour); visual.scale.set(item.w, item.h, item.d); root.add(visual);
   if (item.nominal) {
     const label = tag('Fit unverified', theme.amber); label.position.y = item.h + 12; root.add(label);
     loaded(); return root;
   }
-  const kind = ({ 'reading-chair': 'armchair', 'chair': 'desk-chair', 'floor-lamp': 'floor-lamp', 'lamp': 'floor-lamp', 'table': 'side-table' } as Record<string, string>)[item.kind] ?? item.kind;
+  const kind = modelKindFor(item.id, item.kind, title);
+  if (kind === null) { loaded(); return root; }
   let model = models.get(kind);
   if (!model) { model = modelKinds().then(kinds => kinds.has(kind) ? loader.loadAsync(`/models/${kind}.glb`).then(gltf => gltf.scene).catch(() => null) : null); models.set(kind, model); }
   void model.then(source => {
     if (!source || root.userData.disposed) return;
-    const mesh = source.clone(true); const bounds = new THREE.Box3().setFromObject(mesh); const size = bounds.getSize(new THREE.Vector3());
+    const mesh = source.clone(true);
+    const orientable = ['arc-lamp', 'floor-lamp', 'side-table', 'square-table'].includes(kind);
+    const originalSize = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+    if (orientable && Math.max(originalSize.x, originalSize.z) / Math.min(originalSize.x, originalSize.z) > 1.3
+      && Math.max(item.w, item.d) / Math.min(item.w, item.d) > 1.3
+      && (originalSize.x > originalSize.z) !== (item.w > item.d)) mesh.rotateY(Math.PI / 2);
+    const bounds = new THREE.Box3().setFromObject(mesh); const size = bounds.getSize(new THREE.Vector3());
     if (Math.min(size.x, size.y, size.z) <= 0) return;
     mesh.position.sub(bounds.getCenter(new THREE.Vector3())); mesh.position.y += size.y / 2;
     const wrapper = new THREE.Group(); wrapper.add(mesh); wrapper.scale.set(item.w / size.x, item.h / size.y, item.d / size.z);
     mesh.traverse(child => { if (child instanceof THREE.Mesh) {
       child.geometry = child.geometry.clone();
       const cloneMaterial = (material: THREE.Material): THREE.Material => {
-        const copy = material.clone();
+        const copy = item.source === 'slot' ? new THREE.MeshStandardMaterial({ color: colour, roughness: .8 }) : material.clone();
         // Model texture maps belong to the cache, so each instance keeps its own copy.
         for (const key of Object.keys(copy)) { const value = (copy as unknown as Record<string, unknown>)[key]; if (value instanceof THREE.Texture) (copy as unknown as Record<string, unknown>)[key] = value.clone(); }
         if (root.userData.returned) { copy.transparent = true; copy.opacity = .3; }
@@ -81,7 +95,7 @@ export function furniture(item: Footprint, colour: string, loaded: () => void = 
       child.material = Array.isArray(child.material) ? child.material.map(cloneMaterial) : cloneMaterial(child.material);
       child.castShadow = child.receiveShadow = true;
     } });
-    root.remove(visual); dispose(visual); root.add(wrapper);
+    root.remove(visual); dispose(visual); root.add(wrapper); root.userData.modelKind = kind;
   }).finally(loaded);
   if (item.locked) { const lock = padlock(); lock.position.y = item.h + 12; root.add(lock); }
   return root;

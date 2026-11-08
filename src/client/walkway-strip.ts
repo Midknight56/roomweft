@@ -7,6 +7,24 @@ export interface StripSegment {
   depth: number;
 }
 
+export function walkwayEdgeSegments(path?: readonly Point[] | null, width = 76, edgeWidth = 5): StripSegment[] {
+  if (edgeWidth <= 0) return [];
+  return walkwayStripSegments(path, width).flatMap(segment => {
+    if (segment.width >= segment.depth) {
+      const z = segment.depth / 2 - edgeWidth / 2;
+      return [
+        { x: segment.x, z: segment.z - z, width: segment.width, depth: edgeWidth },
+        { x: segment.x, z: segment.z + z, width: segment.width, depth: edgeWidth },
+      ];
+    }
+    const x = segment.width / 2 - edgeWidth / 2;
+    return [
+      { x: segment.x - x, z: segment.z, width: edgeWidth, depth: segment.depth },
+      { x: segment.x + x, z: segment.z, width: edgeWidth, depth: segment.depth },
+    ];
+  });
+}
+
 export function walkwayStripSegments(path?: readonly Point[] | null, width = 76): StripSegment[] {
   if (!path || path.length < 2) return [];
   const segments: StripSegment[] = [];

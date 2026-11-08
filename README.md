@@ -26,7 +26,7 @@ What is real and what is not:
 | --- | --- |
 | Product search | Real Channel3 API calls. The page opens on one saved live run per style from 6 Nov 2026, labelled "Saved live run". "Search live" makes a new one (three a day per visitor). When a daily cap is spent, the page says so and uses the saved run |
 | Sizes | From the retailer listing through Channel3. A missing size is shown as "fit unverified", never guessed |
-| 3D furniture | Visual approximations scaled to the real size, not the exact product model |
+| 3D furniture | Our own furniture models, scaled to the listed size and coloured from the listing. Not the exact product |
 | Fit checks | Done in code: walls, overlaps, door swing, a 76 cm walkway, budget |
 | Room brief | Workers AI Granite 4.0 H Micro reads the renter's sentence into a style, a budget and search words from a fixed list. Code checks every field. A saved run shows the words it really searched with, labelled as saved |
 | Model picks | The same model picks a candidate per slot for taste and writes a short reason. Code checks every pick. Saved runs keep their recorded picks |
