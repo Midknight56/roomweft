@@ -1,4 +1,5 @@
 import type { Candidate, DesignView, QuoteLine, QuoteState, QuoteView, ReceiptView, RefundState, RefundView, SlotView } from "../shared/api-types";
+import { SANDBOX_TEST_CARD } from "../paypal/client";
 import type { PayPalGateway, PayPalResource, PayPalResult } from "../paypal/client";
 
 export interface DesignSnapshot {
@@ -9,11 +10,15 @@ export interface DesignSnapshot {
   })[];
   fit: Pick<DesignView["fit"], "passes" | "unverified">;
 }
-export interface DesignReader { get(designId: string, visitor: string): Promise<DesignSnapshot | null> }
+export interface DesignReader {
+  get(designId: string, visitor: string): Promise<DesignSnapshot | null>;
+  applyPrices(designId: string, visitor: string, repriced: NonNullable<QuoteView['repriced']>, expectedVersion?: number): Promise<DesignView>;
+}
 export type CheckoutResult<T> = { ok: true; value: T; code?: "already_started" }
-  | { ok: false; code: string; error: string; quote?: QuoteView };
+  | { ok: false; code: string; error: string; quote?: QuoteView; design?: DesignView };
 export interface RecheckedLine { lineId: QuoteLine["lineId"]; priceCents: number | null }
 export interface CheckoutOptions {
+  method?: "paypal" | "card";
   recheck?: (lines: readonly QuoteLine[]) => Promise<readonly RecheckedLine[]>;
 }
 export interface CheckoutServiceOptions {
@@ -29,6 +34,7 @@ interface QuoteRow {
   id: string; visitor: string; design_id: string; design_version: number; lines: string; total_cents: number;
   currency: string; hash: string; state: QuoteState; order_id: string | null; capture_id: string | null;
   captured_cents: number | null; refunded_cents: number; attempt: number; error: string | null;
+  payment_method: "paypal" | "card";
   approve_url: string | null; repriced: string | null;
 }
 interface RefundRow {
@@ -37,7 +43,7 @@ interface RefundRow {
 interface EventRow { id: string; type: string; resource_id: string; custom_id: string }
 
 const success = <T>(value: T): CheckoutResult<T> => ({ ok: true, value });
-const failure = (code: string, error: string, quote?: QuoteView): CheckoutResult<never> => ({ ok: false, code, error, ...(quote ? { quote } : {}) });
+const failure = (code: string, error: string, quote?: QuoteView): Extract<CheckoutResult<never>, { ok: false }> => ({ ok: false, code, error, ...(quote ? { quote } : {}) });
 const notFound = (): CheckoutResult<never> => failure("not_found", "This basket was not found.");
 const dollars = (cents: number): string => `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
 const refundKey = (quoteId: string, lineId: string): string => JSON.stringify([quoteId, lineId]);
@@ -119,6 +125,7 @@ export class CheckoutService {
     const now = this.clock();
     await this.db.batch([
       this.db.prepare("UPDATE quotes SET state = 'superseded', updated_at = ? WHERE design_id = ? AND visitor = ? AND state = 'open'").bind(now, designId, visitor),
+      this.db.prepare("UPDATE quotes SET state = 'superseded', error = ?, updated_at = ? WHERE design_id = ? AND visitor = ? AND state = 'approving'").bind("A newer quote replaced this one.", now, designId, visitor),
       this.db.prepare(`INSERT INTO quotes (id, visitor, design_id, design_version, lines, total_cents, currency, hash, state, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, 'open', ?, ?)`).bind(id, visitor, designId, version, JSON.stringify(lines), total, await quoteHash(lines, version), now, now),
     ]);
@@ -128,20 +135,23 @@ export class CheckoutService {
   async startCheckout(quoteId: string, visitor: string, opts: CheckoutOptions = {}): Promise<CheckoutResult<QuoteView>> {
     const original = await this.owned(quoteId, visitor);
     if (!original) return notFound();
-    const checking = await this.db.prepare(`SELECT id FROM quotes WHERE design_id = ? AND visitor = ? AND state IN ('capturing','capture_unknown') LIMIT 1`)
-      .bind(original.design_id, visitor).first();
+    if (original.attempt > 0 && original.state !== "cancelled" && original.payment_method !== (opts.method ?? "paypal")) {
+      return failure("payment_method", "This quote already has a payment method. Freeze a new quote to change it.", this.view(original));
+    }
+    const checking = await this.db.prepare(`SELECT id FROM quotes WHERE design_id = ? AND visitor = ? AND (state IN ('capturing','capture_unknown') OR (id != ? AND state IN ('ordering','approving'))) LIMIT 1`)
+      .bind(original.design_id, visitor, quoteId).first();
     if (checking) return failure("checking_payment", "PayPal is still checking this payment.", this.view(original));
     const changed = await this.db.prepare(`UPDATE quotes SET state = 'ordering',
       attempt = CASE WHEN state = 'cancelled' THEN attempt + 1 WHEN attempt = 0 THEN 1 ELSE attempt END,
       order_id = CASE WHEN state = 'cancelled' THEN NULL ELSE order_id END,
-      approve_url = NULL, error = NULL, updated_at = ?
+      approve_url = NULL, error = NULL, payment_method = ?, updated_at = ?
       WHERE id = ? AND visitor = ? AND (state IN ('open','cancelled') OR (state = 'approving' AND order_id IS NULL))
       AND NOT EXISTS (SELECT 1 FROM quotes AS other WHERE other.design_id = quotes.design_id AND other.visitor = quotes.visitor
-        AND other.state IN ('capturing','capture_unknown'))`)
-      .bind(this.clock(), quoteId, visitor).run();
+        AND (other.state IN ('capturing','capture_unknown') OR (other.id != quotes.id AND other.state IN ('ordering','approving'))))`)
+      .bind(opts.method ?? "paypal", this.clock(), quoteId, visitor).run();
     if (!changed.meta.changes) {
-      const pending = await this.db.prepare("SELECT id FROM quotes WHERE design_id = ? AND visitor = ? AND state IN ('capturing','capture_unknown') LIMIT 1")
-        .bind(original.design_id, visitor).first();
+      const pending = await this.db.prepare("SELECT id FROM quotes WHERE design_id = ? AND visitor = ? AND (state IN ('capturing','capture_unknown') OR (id != ? AND state IN ('ordering','approving'))) LIMIT 1")
+        .bind(original.design_id, visitor, quoteId).first();
       if (pending) return failure("checking_payment", "PayPal is still checking this payment.", await this.current(quoteId));
       return { ok: true, value: await this.current(quoteId), code: "already_started" };
     }
@@ -164,21 +174,22 @@ export class CheckoutService {
           newCents: entry.priceCents !== null && Number.isSafeInteger(entry.priceCents) && entry.priceCents >= 0 ? entry.priceCents : null });
       }
     }
-    if (repriced.length) return this.stale(row, "price_changed", "Item prices changed. Please make a new quote.", repriced);
-    const result = await this.paypal.createOrder({
-      intent: "CAPTURE",
-      purchase_units: [{
-        reference_id: "room", custom_id: `roomweft:${quoteId}`, invoice_id: `RW-${quoteId}-${row.attempt}`,
-        description: "RoomWeft sandbox basket. No real goods are sold.", soft_descriptor: "ROOMWEFT",
-        items: lines.map(line => ({ name: line.title, sku: line.roomObjectId,
-          unit_amount: { currency_code: "USD", value: dollars(line.priceCents) }, quantity: "1", category: "PHYSICAL_GOODS" })),
-        amount: { currency_code: "USD", value: dollars(row.total_cents), breakdown: { item_total: { currency_code: "USD", value: dollars(row.total_cents) } } },
-      }],
-      payment_source: { paypal: { experience_context: {
-        brand_name: "RoomWeft", shipping_preference: "NO_SHIPPING", user_action: "PAY_NOW",
-        return_url: this.options.returnUrl, cancel_url: this.options.cancelUrl,
-      } } },
-    }, `rw-order-${quoteId}-${row.attempt}`);
+    if (repriced.length) {
+      let updated: DesignView;
+      try { updated = await this.options.designs.applyPrices(row.design_id, visitor, repriced, row.design_version); }
+      catch (error) {
+        await this.db.prepare("UPDATE quotes SET state = 'open', updated_at = ? WHERE id = ? AND state = 'ordering'")
+          .bind(this.clock(), quoteId).run();
+        throw error;
+      }
+      const result = await this.stale(row, "price_changed", "Prices changed at the shop. Freeze a new quote.", repriced);
+      return { ...result, design: updated };
+    }
+    const result = await this.paypal.createOrder(this.orderBody(row), `rw-order-${quoteId}-${row.attempt}`);
+    if (row.payment_method === "card") {
+      await this.cardAnswer(row, result);
+      return success(await this.current(quoteId));
+    }
     if (result.ok && result.body?.id) {
       await this.db.prepare("UPDATE quotes SET order_id = ?, approve_url = ?, state = 'approving', updated_at = ? WHERE id = ? AND state = 'ordering'")
         .bind(result.body.id, approveLink(result.body) ?? null, this.clock(), quoteId).run();
@@ -191,7 +202,39 @@ export class CheckoutService {
     return failure("order_failed", error, await this.current(quoteId));
   }
 
-  private async stale(row: QuoteRow, code: string, error: string, repriced?: QuoteView["repriced"]): Promise<CheckoutResult<never>> {
+  private orderBody(row: QuoteRow): object {
+    const lines = this.view(row).lines;
+    return {
+      intent: "CAPTURE",
+      purchase_units: [{
+        reference_id: "room", custom_id: `roomweft:${row.id}`, invoice_id: `RW-${row.id}-${row.attempt}`,
+        description: "RoomWeft sandbox basket. No real goods are sold.", soft_descriptor: "ROOMWEFT",
+        items: lines.map(line => ({ name: line.title, sku: line.roomObjectId,
+          unit_amount: { currency_code: "USD", value: dollars(line.priceCents) }, quantity: "1", category: "PHYSICAL_GOODS" })),
+        amount: { currency_code: "USD", value: dollars(row.total_cents), breakdown: { item_total: { currency_code: "USD", value: dollars(row.total_cents) } } },
+      }],
+      payment_source: row.payment_method === "card" ? { card: SANDBOX_TEST_CARD } : { paypal: { experience_context: {
+        brand_name: "RoomWeft", shipping_preference: "NO_SHIPPING", user_action: "PAY_NOW",
+        return_url: this.options.returnUrl, cancel_url: this.options.cancelUrl,
+      } } },
+    };
+  }
+
+  private async cardAnswer(row: QuoteRow, result: PayPalResult): Promise<void> {
+    if (result.ok && result.body.id) {
+      await this.db.prepare("UPDATE quotes SET order_id = ?, updated_at = ? WHERE id = ?")
+        .bind(result.body.id, this.clock(), row.id).run();
+      if (result.body.status === "COMPLETED" && await this.applyCapture(row, result.body)) return;
+    }
+    const declined = (!result.ok && result.kind === "http" && result.status === 422)
+      || (result.ok && captures(result.body).some(capture => ["DECLINED", "DENIED"].includes(capture.status ?? "")));
+    if (declined) {
+      await this.db.prepare("UPDATE quotes SET state = 'declined', error = ?, updated_at = ? WHERE id = ? AND state != 'paid'")
+        .bind("PayPal declined the test card. Your room is unchanged.", this.clock(), row.id).run();
+    } else await this.markUnknown(row.id);
+  }
+
+  private async stale(row: QuoteRow, code: string, error: string, repriced?: QuoteView["repriced"]): Promise<Extract<CheckoutResult<never>, { ok: false }>> {
     await this.db.prepare("UPDATE quotes SET state = 'stale', error = ?, repriced = ?, updated_at = ? WHERE id = ? AND state = 'ordering'")
       .bind(error, repriced ? JSON.stringify(repriced) : null, this.clock(), row.id).run();
     return failure(code, error, await this.current(row.id));
@@ -240,7 +283,7 @@ export class CheckoutService {
     return failure("checking_payment", "PayPal is still checking this payment.", await this.current(row.id));
   }
   private async markUnknown(id: string): Promise<void> {
-    await this.db.prepare("UPDATE quotes SET state = 'capture_unknown', error = ?, updated_at = ? WHERE id = ? AND state IN ('approving','capturing','capture_unknown')")
+    await this.db.prepare("UPDATE quotes SET state = 'capture_unknown', error = ?, updated_at = ? WHERE id = ? AND state IN ('ordering','approving','capturing','capture_unknown')")
       .bind("PayPal is still checking this payment.", this.clock(), id).run();
   }
   private async applyCapture(row: QuoteRow, order: PayPalResource): Promise<boolean> {
@@ -256,8 +299,14 @@ export class CheckoutService {
 
   /** Internal recovery entry point. Public routes must check visitor ownership before calling it. */
   async reconcile(quoteId: string, retryCapture = true): Promise<CheckoutResult<ReceiptView>> {
-    const row = await this.row(quoteId);
+    let row = await this.row(quoteId);
     if (!row) return notFound();
+    if (!row.order_id && row.payment_method === "card" && row.state === "capture_unknown") {
+      const result = await this.paypal.createOrder(this.orderBody(row), `rw-order-${row.id}-${row.attempt}`);
+      await this.cardAnswer(row, result);
+      row = (await this.row(quoteId))!;
+      if (["paid", "declined"].includes(row.state)) return success(await this.buildReceipt(row));
+    }
     if (!row.order_id) return failure("checking_payment", "PayPal is still checking this payment.", this.view(row));
     const order = await this.paypal.getOrder(row.order_id);
     if (!order.ok) return failure("checking_payment", "PayPal is still checking this payment.", this.view(row));
@@ -386,18 +435,23 @@ export class CheckoutService {
       const refund = rows.results.find(row => row.line_id === refundKey(quote.id, line.lineId));
       return { ...line, refund: refund ? { state: refund.state, amountCents: refund.amount_cents, paypalId: refund.paypal_id } : null };
     });
+    const eventRows = await this.db.prepare(
+      "SELECT type, received_at FROM webhook_events WHERE custom_id = ? ORDER BY received_at ASC LIMIT 10"
+    ).bind(`roomweft:${quote.id}`).all<{ type: string; received_at: number }>();
+    const events = eventRows.results.map(row => ({ type: row.type, receivedAt: row.received_at }));
     return { quote: quoteView, orderId: quote.order_id, captureId: quote.capture_id,
       capturedCents: quote.captured_cents ?? 0, refundedCents: quote.refunded_cents, lines,
       plan: quote.state === "paid" ? lines.map(line => ({ roomObjectId: line.roomObjectId, status: line.refund?.state === "completed" ? "returned" : "paid" })) : [],
+      events,
       ...(quote.error?.startsWith("amount_mismatch") ? { amountMismatch: true } : {}),
     };
   }
-  async receipt(quoteId: string, visitor: string): Promise<CheckoutResult<ReceiptView>> {
+  async receipt(quoteId: string, visitor: string, options: { reconcile?: boolean } = {}): Promise<CheckoutResult<ReceiptView>> {
     const quote = await this.owned(quoteId, visitor);
     if (!quote) return notFound();
     await this.processPendingEvents(quoteId);
     const current = (await this.row(quoteId))!;
-    if (current.state === "capture_unknown") await this.reconcile(quoteId);
+    if (options.reconcile !== false && current.state === "capture_unknown") await this.reconcile(quoteId);
     const pending = await this.db.prepare("SELECT id FROM refunds WHERE quote_id = ? AND state IN ('requesting','pending','unknown')").bind(quoteId).all<{ id: string }>();
     for (const refund of pending.results) await this.refreshRefund(refund.id);
     return success(await this.buildReceipt((await this.row(quoteId))!));

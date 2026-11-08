@@ -7,11 +7,12 @@ export function tag(text: string, colour: string = theme.ink): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
   const ctx = canvas.getContext('2d')!; ctx.fillStyle = theme.panel; ctx.fillRect(0, 0, 512, 96); ctx.fillStyle = colour; ctx.font = 'bold 42px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 62);
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false })); sprite.userData.tag = true; sprite.scale.set(88, 16, 1); sprite.renderOrder = 10; return sprite;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false })); sprite.name = text; sprite.userData.tag = true; sprite.scale.set(88, 16, 1); sprite.renderOrder = 10; return sprite;
 }
 export function setTagMode(root: THREE.Object3D, mode: 'Overview' | 'Plan' | 'Walk'): void {
   root.traverse(child => {
     if (!(child instanceof THREE.Sprite) || !child.userData.tag || !child.material.map) return;
+    child.visible = mode === 'Plan';
     const map = child.material.map;
     map.repeat.x = mode === 'Plan' ? -1 : 1;
     map.offset.x = mode === 'Plan' ? 1 : 0;

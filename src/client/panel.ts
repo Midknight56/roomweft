@@ -1,13 +1,14 @@
 import type { State } from './state';
 import type { Candidate, DesignView, SlotView } from '../shared/api-types';
 import type { SlotId } from '../shared/room';
-import { STYLES, OWNED_ITEMS } from '../shared/room';
-import { budgetText, checkoutAllowed, fitBadge, money, paymentLocked, quoteChanged, receiptStateText, refundText, slotLabel, unverifiedItemsText } from './helpers';
+import { STYLES, OWNED_ITEMS, SLOTS } from '../shared/room';
+import { budgetText, checkoutAllowed, doorTightWarning, eventTimeText, fitBadge, money, paymentLocked, paypalEventName, quoteChanged, receiptStateText, refundText, slotLabel, unverifiedItemsText } from './helpers';
 import { swatches } from './theme';
+import { missingSizeText } from './helpers';
 
 export interface Actions {
-  retry: () => void; style: (id: string) => void; budget: (cents: number) => void; lock: (id: string) => void;
-  design: (live: boolean) => void; swap: (slot: SlotId, id: string) => void; quote: () => void; checkout: () => void;
+  brief: (text: string) => void; retry: () => void; style: (id: string) => void; budget: (cents: number) => void; lock: (id: string) => void;
+  design: (live: boolean) => void; swap: (slot: SlotId, id: string) => void; quote: () => void; checkout: (method?: 'paypal' | 'card') => void;
   refund: (id: SlotId) => void; refreshReceipt: () => void;
 }
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', className = ''): HTMLElementTagNameMap[K] {
@@ -27,15 +28,19 @@ function retailer(pick: Candidate): HTMLAnchorElement {
 }
 function candidate(card: HTMLElement, pick: Candidate): void {
   if (pick.image) { try { const url = new URL(pick.image); if (url.protocol === 'https:') { const image = el('img'); image.src = url.href; image.alt = pick.title; image.loading = 'lazy'; image.width = 88; image.height = 88; image.addEventListener('error', () => image.remove(), { once: true }); card.append(image); } } catch { /* The text listing remains available. */ } }
-  card.append(el('small', pick.domain), el('h3', pick.title), el('strong', money(pick.priceCents)), el('p', pick.dims ? `${pick.dims.w} x ${pick.dims.d} x ${pick.dims.h} cm` : 'Size not listed'));
+  card.append(el('small', pick.domain), el('h3', pick.title), el('strong', money(pick.priceCents)), el('p', pick.dims ? `${pick.dims.w} x ${pick.dims.d} x ${pick.dims.h} cm` : missingSizeText(pick)));
 }
 function pickCard(slot: SlotView, design: DesignView, state: State, actions: Actions, index: number): HTMLElement {
   const card = el('article', '', 'pick'); card.dataset.object = slot.slot; card.dataset.testid = `slot-${slot.slot}`; card.tabIndex = 0;
   const heading = objectLine(slot.slot, index); heading.append(el('strong', slotLabel(slot.slot))); card.append(heading);
   if (!slot.pick) { card.append(el('p', slot.note ?? 'No listing found. Try another style or search again.', 'amber')); return card; }
   candidate(card, slot.pick);
+  if (slot.unavailable) card.append(el('p', 'No longer available at this shop. Swap for another.', 'alarm'));
   card.append(el('p', slot.by === 'ai' ? `Picked for taste by the model. ${slot.reason}` : slot.by === 'recorded' ? `Picked in the recorded run. ${slot.reason}` : `Picked by rules. ${slot.reason}`, 'pick-reason'));
   const badge = fitBadge(design.fit, slot.slot); card.append(el('p', badge.text, `badge ${badge.tone}`));
+  const tight = (design.fit.tight ?? []).find(item => item.id === slot.slot);
+  const warning = doorTightWarning(tight);
+  if (warning) card.append(el('p', warning, 'amber'));
   const best = slot.alternates.find(alternate => alternate.fit.passes && alternate.verified);
   if (badge.tone === 'alarm' && best) card.append(button('Swap for one that fits', () => actions.swap(slot.slot, best.candidate.id), state.busy || paymentLocked(state.quote), `swap-${slot.slot}`));
   if (slot.alternates.length) {
@@ -71,6 +76,22 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     const card = button('', () => actions.style(option.id), state.busy || paymentLocked(state.quote)); card.className = 'style-card'; card.dataset.testid = `style-${option.id}`; card.setAttribute('aria-pressed', String(state.style === option.id));
     const strip = el('span', '', 'palette'); [option.palette.floor, option.palette.wall, option.palette.accent].forEach(colour => { const swatch = el('i'); swatch.style.background = colour; strip.append(swatch); }); card.append(strip, el('strong', option.label), el('small', option.blurb)); choices.append(card);
   }); style.append(choices);
+  const briefLabel = el('label', 'Tell RoomWeft about the room'); briefLabel.htmlFor = 'brief';
+  const briefField = el('input'); briefField.id = 'brief'; briefField.type = 'text'; briefField.maxLength = 200;
+  briefField.placeholder = 'I read in the evening, the window side is cold, under $700';
+  briefField.value = state.brief ?? ''; briefField.disabled = state.busy || paymentLocked(state.quote);
+  briefField.addEventListener('input', () => actions.brief(briefField.value));
+  style.append(briefLabel, briefField);
+  if (state.design?.brief) {
+    const brief = state.design.brief;
+    const box = el('div', '', 'brief-box'); box.dataset.testid = 'brief-understood'; box.dataset.by = brief.by;
+    box.append(el('h3', 'What RoomWeft understood'));
+    if (brief.text) box.append(el('p', brief.text));
+    if (brief.by === 'rules') box.append(el('small', 'Brief read by rules'));
+    box.append(el('p', brief.understood));
+    for (const slot of SLOTS) box.append(el('small', `Searched: ${brief.queries[slot.id]}`));
+    style.append(box);
+  }
   const budgetControl = el('div', '', 'budget-control');
   const label = el('label', 'Budget'); label.htmlFor = 'budget'; const field = el('div', '', 'budget-field'); field.append(el('span', '$', 'budget-prefix'));
   const slider = el('input'); slider.id = 'budget'; slider.dataset.testid = 'budget'; slider.type = 'number'; slider.min = '150'; slider.max = '3000'; slider.step = '1'; slider.value = String(state.budget / 100); slider.setAttribute('aria-label', 'Budget'); slider.disabled = state.busy || paymentLocked(state.quote); field.append(slider); budgetControl.append(label, field);
@@ -82,10 +103,19 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
   };
   slider.addEventListener('blur', submitBudget);
   slider.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); submitBudget(); } });
-  const designButtons = el('div', '', 'buttons design-actions'); designButtons.append(button('Use recorded run', () => actions.design(false), state.busy || paymentLocked(state.quote), 'use-recorded'), button('Search live', () => actions.design(true), state.busy || paymentLocked(state.quote) || !state.status?.search.live || state.status.visitor.liveDesignsLeft === 0, 'search-live'));
-  const budgetRow = el('div', '', 'budget-row'); budgetRow.append(budgetControl, designButtons); style.append(budgetRow, el('small', `${state.status?.visitor.liveDesignsLeft ?? 0} live designs left today. Recorded runs are instant and free.`)); fragment.append(style);
-  const picks = section(3, 'Picks'); if (state.design) state.design.slots.forEach((slot, index) => picks.append(pickCard(slot, state.design!, state, actions, index))); fragment.append(picks);
-  const basket = section(4, 'Basket'); const design = state.design;
+  const designButtons = el('div', '', 'buttons design-actions'); designButtons.append(button('Search live', () => actions.design(true), state.busy || paymentLocked(state.quote) || !state.status?.search.live || state.status.visitor.liveDesignsLeft === 0, 'search-live'));
+  const budgetRow = el('div', '', 'budget-row'); budgetRow.append(budgetControl, designButtons); const reset = button('Reset to the saved run', () => actions.design(false), state.busy || paymentLocked(state.quote), 'use-recorded'); reset.className = 'text-link'; budgetControl.append(reset); style.append(budgetRow, el('small', `${state.status?.visitor.liveDesignsLeft ?? 0} live designs left today. Recorded runs are instant and free.`)); fragment.append(style);
+  const picks = section(3, 'Picks');
+  picks.id = 'picks';
+  const backToRoom = el('a', 'Back to room', 'back-to-room');
+  backToRoom.href = '#room';
+  backToRoom.setAttribute('aria-label', 'Back to room');
+  picks.append(backToRoom);
+  if (state.design) state.design.slots.forEach((slot, index) => picks.append(pickCard(slot, state.design!, state, actions, index)));
+  fragment.append(picks);
+  const basket = section(4, 'Basket');
+  basket.id = 'basket';
+  const design = state.design;
   if (design) {
     design.slots.forEach((slot, index) => { if (slot.pick) { const row = objectLine(slot.slot, index); row.append(el('span', slot.pick.title), el('strong', money(slot.pick.priceCents))); basket.append(row); } });
     basket.append(el('p', `${money(design.totals.totalCents)} of ${money(design.totals.budgetCents)}`, 'total'), el('p', budgetText(design.totals.totalCents, design.totals.budgetCents), design.totals.overCents ? 'alarm' : 'moss'), el('p', unverifiedItemsText(design.totals.unverifiedCount)));
@@ -98,11 +128,15 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     else if (quote?.state === 'paid') basket.append(el('p', 'Paid with sandbox test money.', 'moss'), button('Freeze a new quote', actions.quote, state.busy || blocked, 'freeze-quote'));
     else if (quote?.state === 'ordering') basket.append(el('p', 'Preparing your sandbox payment.', 'amber'), button('Check payment status', actions.refreshReceipt, state.busy));
     else {
-      if (changed) basket.append(el('p', 'This quote is stale or the design changed. Freeze a new quote before paying.', 'amber'));
+      if (changed) basket.append(el('p', quote?.repriced?.length ? 'Prices changed at the shop. Freeze a new quote.' : 'This quote is stale or the design changed. Freeze a new quote before paying.', 'amber'));
       if (quote?.error) basket.append(el('p', quote.error, 'alarm'));
       quote?.repriced?.forEach(line => basket.append(el('p', `${slotLabel(line.lineId)}: ${money(line.oldCents)} → ${line.newCents === null ? 'Unavailable' : money(line.newCents)}`, 'amber')));
       basket.append(button(quote ? 'Freeze a new quote' : 'Freeze quote', actions.quote, state.busy || blocked || paymentLocked(quote), 'freeze-quote'));
-      if (quote && !changed) basket.append(el('p', `Frozen total ${money(quote.totalCents)}`), button('Pay with PayPal (sandbox)', actions.checkout, state.busy || blocked || !checkoutAllowed(quote, design) || !state.status?.sandbox.live, 'pay'));
+      const payDisabled = state.busy || blocked || !quote || changed || !checkoutAllowed(quote, design) || !state.status?.sandbox.live;
+      if (quote && !changed) basket.append(el('p', `Frozen total ${money(quote.totalCents)}`));
+      const payments = el('div', '', 'buttons');
+      payments.append(button('Pay with the test card', () => actions.checkout('card'), payDisabled, 'pay-card'), button('Pay with PayPal (sandbox)', () => actions.checkout('paypal'), payDisabled, 'pay'));
+      basket.append(payments, el('small', "Test card from PayPal's sandbox list. Test money to our sandbox merchant. Nothing ships."));
     }
   } if (state.checkoutMessage && state.checkoutMessage !== state.notice) basket.prepend(el('p', state.checkoutMessage, 'notice')); fragment.append(basket);
   const receipt = section(5, 'Receipt'); receipt.id = 'receipt'; receipt.dataset.testid = 'receipt'; receipt.tabIndex = -1; const sale = state.receipt;
@@ -118,9 +152,27 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
       row.append(button('Refund this item', () => actions.refund(line.lineId), state.busy || sale.recorded === true || !sale.captureId || !!line.refund || sale.quote.state !== 'paid', `refund-${line.lineId}`)); receipt.append(row);
     });
     if (sale.plan.some(line => line.status === 'returned')) receipt.append(el('p', 'The room plan and the receipt now differ. Freeze a new quote to buy a replacement.', 'notice'));
-    if (!sale.recorded) receipt.append(button('Refresh receipt', actions.refreshReceipt, state.busy));
+    if (!sale.recorded) {
+      receipt.append(el('h3', 'PayPal events'));
+      if (sale.events && sale.events.length > 0) {
+        sale.events.forEach(event => {
+          const row = el('div', '', 'receipt-event');
+          row.append(
+            el('strong', paypalEventName(event.type)),
+            el('span', eventTimeText(event.receivedAt)),
+            el('small', 'Signature verified', 'moss'),
+          );
+          receipt.append(row);
+        });
+      } else {
+        receipt.append(el('p', 'No PayPal events yet. They arrive within a minute.'));
+      }
+      const refresh = button('Refresh receipt', actions.refreshReceipt, state.busy);
+      refresh.className = 'text-link';
+      receipt.append(refresh);
+    }
   } else receipt.append(el('p', 'Your sandbox receipt appears here after payment.')); fragment.append(receipt);
-  const judges = el('details', '', 'judges'); judges.dataset.testid = 'judges'; judges.append(el('summary', 'For judges')); const path = el('ol'); ['Start with the recorded room. Keep your own desk.', 'Swap the red chair for one that fits.', 'Try Plan, then Walk through the room.', 'Freeze a quote. Pay with sandbox test money. Refund one item.'].forEach(text => path.append(el('li', text))); judges.append(path);
+  const judges = el('details', '', 'judges'); judges.dataset.testid = 'judges'; judges.append(el('summary', 'For judges')); const path = el('ol'); ['Pay with the test card. No login.', 'Start with the recorded room. Keep your own desk.', 'Swap the red chair for one that fits.', 'Try Plan, then Walk through the room.', 'Freeze a quote. Pay with sandbox test money. Refund one item.'].forEach(text => path.append(el('li', text))); judges.append(path);
   if (state.status?.judgeLogin) { judges.append(el('p', 'Sandbox buyer login'), el('p', state.status.judgeLogin.email)); const password = el('p', state.status.judgeLogin.password); password.hidden = true; const reveal = button('Show sandbox buyer password', () => { password.hidden = !password.hidden; reveal.textContent = password.hidden ? 'Show sandbox buyer password' : 'Hide sandbox buyer password'; }); judges.append(reveal, password); }
   fragment.append(judges); root.replaceChildren(fragment);
   root.querySelectorAll('details').forEach((node, index) => { node.open = openDetails[index] ?? false; });
@@ -129,13 +181,13 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
 export function renderStatus(root: HTMLElement, state: State): void {
   root.replaceChildren();
   for (const [key, label] of [['search', 'Live search'], ['ai', 'Live AI'], ['sandbox', 'Live sandbox']] as const) { const live = state.status?.[key].live; root.append(el('span', `${label}${live ? '' : ' off today'}`, `status-pill ${live ? 'on' : 'off'}`)); }
-  const design = state.design; const mode = document.querySelector('#mode-label'); if (mode) mode.textContent = design?.mode === 'recorded' ? `Recorded run from ${recordedDate(design.capturedAt)}` : design?.mode === 'rules' ? 'Picked by rules, no AI today' : design ? 'Live design' : 'Loading your room';
+  const design = state.design; const mode = document.querySelector('#mode-label'); if (mode) mode.textContent = design?.mode === 'recorded' ? `Saved live run from ${recordedDate(design.capturedAt)}. Press Search live for a new one.` : design?.mode === 'rules' ? 'Picked by rules, no AI today' : design ? 'Live design' : 'Loading your room';
 }
 export function recordedDate(value?: string): string {
   if (!value) return 'date unavailable';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'date unavailable';
-  const parts = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).formatToParts(date);
   const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find(entry => entry.type === type)?.value ?? '';
   return `${part('day')} ${part('month')} ${part('year')}`;
 }

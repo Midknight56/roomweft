@@ -30,6 +30,7 @@ export interface WalkwayTarget {
   target: Point;
   reachable: boolean;
   pinch: Point[];
+  path?: Point[];
 }
 export interface FitReport {
   /** The ids that fail each geometric check. */
@@ -40,8 +41,20 @@ export interface FitReport {
   window: string[];
   budget: { total: number; budget: number; over: number };
   unverified: string[];
+  tight?: { id: string; smallestCm: number; openingCm: number }[];
   passes: boolean;
   messages: string[];
+}
+
+export function doorTight(
+  dims: { w: number; d: number } | null | undefined,
+  openingCm: number,
+): { smallestCm: number; openingCm: number } | null {
+  if (!dims || !Number.isFinite(dims.w) || !Number.isFinite(dims.d) || dims.w <= 0 || dims.d <= 0) return null;
+  if (dims.w > openingCm - 2 && dims.d > openingCm - 2) {
+    return { smallestCm: Math.floor(Math.min(dims.w, dims.d)), openingCm };
+  }
+  return null;
 }
 
 export function footprintBounds(item: Footprint): Bounds {
@@ -68,6 +81,27 @@ const CLEARANCE = 38;
 const directions: Record<Rotation, Point> = {
   0: { x: 0, z: 1 }, 90: { x: 1, z: 0 }, 180: { x: 0, z: -1 }, 270: { x: -1, z: 0 },
 };
+
+export function simplifyPath(points: readonly Point[]): Point[] {
+  if (points.length <= 2) return [...points];
+  const result: Point[] = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    const dx1 = curr.x - prev.x;
+    const dz1 = curr.z - prev.z;
+    const dx2 = next.x - curr.x;
+    const dz2 = next.z - curr.z;
+    const cross = dx1 * dz2 - dz1 * dx2;
+    const dot = dx1 * dx2 + dz1 * dz2;
+    if (cross !== 0 || dot <= 0) {
+      result.push(curr);
+    }
+  }
+  result.push(points[points.length - 1]);
+  return result;
+}
 
 function checkWalkway(layout: readonly Footprint[], room: Room, door: Door): FitReport["walkway"] {
   const obstacles = layout.filter(item => item.kind !== "rug").map(item => ({ item, box: footprintBounds(item) }));
@@ -125,13 +159,23 @@ function checkWalkway(layout: readonly Footprint[], room: Room, door: Door): Fit
     const zoneCentre = { x: item.x + direction.x * (radius + 30), z: item.z + direction.z * (radius + 30) };
     const halfWidth = direction.x === 0 ? (box.maxX - box.minX) / 2 + 30 : 30;
     const halfDepth = direction.z === 0 ? (box.maxZ - box.minZ) / 2 + 30 : 30;
-    const reachable = queue.some(index => {
-      const p = pointAt(index);
-      return p.x >= zoneCentre.x - halfWidth && p.x <= zoneCentre.x + halfWidth
-        && p.z >= zoneCentre.z - halfDepth && p.z <= zoneCentre.z + halfDepth;
-    });
+    const inZone = (p: Point): boolean =>
+      p.x >= zoneCentre.x - halfWidth && p.x <= zoneCentre.x + halfWidth
+      && p.z >= zoneCentre.z - halfDepth && p.z <= zoneCentre.z + halfDepth;
+    const goal = queue.find(index => inZone(pointAt(index)));
+    const reachable = goal !== undefined;
     const pinch: Point[] = [];
-    if (!reachable) {
+    let path: Point[] = [];
+    if (reachable && goal !== undefined) {
+      let current = goal;
+      const raw: Point[] = [pointAt(current)];
+      while (current !== entranceIndex && previous[current] !== -1 && previous[current] !== current) {
+        current = previous[current];
+        raw.push(pointAt(current));
+      }
+      raw.reverse();
+      path = simplifyPath(raw);
+    } else {
       // A second BFS permits blocked cells and finds the shortest partial route
       // to the front zone centre. Keep cells where two clearance regions meet as a band.
       const route = new Int32Array(count).fill(-1);
@@ -156,18 +200,24 @@ function checkWalkway(layout: readonly Footprint[], room: Room, door: Door): Fit
       }
       const band = new Set<number>();
       let current = best;
+      const fullRoute: number[] = [];
       while (true) {
+        fullRoute.push(current);
         for (const index of [current, ...neighbours(current)]) {
           const p = pointAt(index);
           const contacts = obstacles.filter(({ box: obstacle }) => contains(p, obstacle, CLEARANCE)).length;
           if (contacts >= 2 || (contacts >= 1 && wallBlocks(p))) band.add(index);
         }
-        if (route[current] === current) break;
+        if (route[current] === current || route[current] === -1) break;
         current = route[current];
       }
       for (const index of band) pinch.push(pointAt(index));
+      fullRoute.reverse();
+      const pinchIndex = fullRoute.findIndex(index => band.has(index));
+      const partialRoute = pinchIndex !== -1 ? fullRoute.slice(0, pinchIndex + 1) : fullRoute;
+      path = simplifyPath(partialRoute.map(index => pointAt(index)));
     }
-    return { id: item.id, target, reachable, pinch };
+    return { id: item.id, target, reachable, pinch, path };
   });
   const pinch = [...new Map(targets.flatMap(target => target.pinch).map(p => [`${p.x},${p.z}`, p])).values()];
   return { reachable: targets.every(target => target.reachable), targets, pinch };
@@ -218,9 +268,16 @@ export function checkFit(layout: readonly Footprint[], room: Room, door: Door, w
   if (over > 0) messages.push(`The basket is over budget by $${(over / 100).toFixed(2)}.`);
   const unverified = layout.filter(item => item.dims === "unverified").map(item => item.id);
   for (const item of layout.filter(item => item.dims === "unverified")) messages.push(`The ${item.label} has unverified dimensions.`);
+  const tight: { id: string; smallestCm: number; openingCm: number }[] = [];
+  const doorOpeningCm = door.opening.maxX - door.opening.minX;
+  for (const item of layout) {
+    if (item.source !== "slot" || item.kind === "rug" || item.id === "rug" || item.dims === "unverified" || item.nominal) continue;
+    const warning = doorTight({ w: item.w, d: item.d }, doorOpeningCm);
+    if (warning) tight.push({ id: item.id, ...warning });
+  }
   return {
     inside, overlaps, doorSwing, walkway, window: windowWarnings,
-    budget: { total, budget, over }, unverified,
+    budget: { total, budget, over }, unverified, tight,
     passes: inside.length === 0 && overlaps.length === 0 && doorSwing.length === 0 && walkway.reachable && over === 0,
     messages,
   };
@@ -239,10 +296,11 @@ export function dimsFromOffer(dimensions: unknown, kind?: string): Dimensions | 
     return Math.round(cm * 10) / 10;
   }
   if (kind === "rug") {
-    const w = convert(values.width, 30, 600);
-    const d = convert(values.length, 30, 600);
-    const h = convert(values.height, 0, 400);
-    return w === null || d === null ? null : { w, d, h: h === null ? 1 : h };
+    const length = convert(values.length, 30, 600);
+    const width = convert(values.width, 30, 600);
+    const axes = length !== null && width !== null ? [length, width]
+      : [length, width, convert(values.height, 30, 600)].filter((axis): axis is number => axis !== null);
+    return axes.length < 2 ? null : { w: Math.min(...axes), d: Math.max(...axes), h: 1 };
   }
   const w = convert(values.width);
   const d = convert(values.length);

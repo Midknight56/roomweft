@@ -1,6 +1,9 @@
 import { afterEach } from "vitest";
 import { PayPalClient } from "../../src/paypal/client";
-import { CheckoutService, type DesignSnapshot, type CheckoutResult } from "../../src/checkout/service";
+import { CheckoutService, type CheckoutResult } from "../../src/checkout/service";
+import type { DesignView, QuoteView } from "../../src/shared/api-types";
+import { checkFit } from "../../src/shared/fit";
+import { ROOM, DOOR, WINDOW } from "../../src/shared/room";
 import { asD1, freshD1, type FakeD1 } from "./d1-fake";
 
 export interface Call { path: string; method: string; headers: Headers; raw: string; body: unknown }
@@ -32,22 +35,32 @@ export function harness() {
   const network = scriptedFetch();
   let now = 1_800_000_000_000;
   let nextId = 0;
-  let design: DesignSnapshot | null = {
-    id: "design", version: 1, fit: { passes: true, unverified: [] },
-    slots: [{ slot: "reading-chair", placement: { x: 100, z: 100, rot: 0 },
-      pick: { id: "product-chair", title: "Reading chair", priceCents: 1250, currency: "USD", url: "https://shop.test/chair", domain: "shop.test" },
+  let design: DesignView | null = {
+    id: "design", version: 1, fit: checkFit([], ROOM, DOOR, WINDOW),
+    mode: "recorded", style: "warm-reading", budgetCents: 60000, owned: [],
+    totals: { totalCents: 1250, budgetCents: 60000, overCents: 0, unverifiedCount: 0 }, labels: { search: "recorded", ai: "recorded" },
+    slots: [{ slot: "reading-chair", by: "rules", reason: "Fits the room.", alternates: [], placement: { x: 100, z: 100, rot: 0 },
+      pick: { id: "product-chair", title: "Reading chair", colors: [], materials: [], dims: null, priceCents: 1250, currency: "USD", url: "https://shop.test/chair", domain: "shop.test" },
       source: { query: "reading chair", maxPrice: 2000, resultIds: ["product-chair"], retrievedAt: now, cached: false, origin: "live" } }],
   };
   const paypal = new PayPalClient({ clientId: "test-client", secret: "test-only", fetch: network.fetcher, clock: () => now });
   const options = {
-    db: asD1(db), paypal, designs: { get: async (id: string, visitor: string) => id === design?.id && visitor === "visitor" ? structuredClone(design) : null },
+    db: asD1(db), paypal, designs: { get: async (id: string, visitor: string) => id === design?.id && visitor === "visitor" ? structuredClone(design) : null, applyPrices: async (_id: string, _visitor: string, repriced: NonNullable<QuoteView['repriced']>) => {
+      for (const entry of repriced) {
+        const slot = design!.slots.find(slot => slot.slot === entry.lineId)!;
+        if (entry.newCents === null) { slot.unavailable = true; design!.fit.passes = false; }
+        else slot.pick!.priceCents = entry.newCents;
+      }
+      design!.version++;
+      return structuredClone(design!);
+    } },
     returnUrl: "https://room.test/return", cancelUrl: "https://room.test/cancel", clock: () => now, ids: () => `id${++nextId}`,
   };
   const service = new CheckoutService(options);
   const h = {
     db, network, paypal, options, service,
     get design() { return design!; },
-    set design(value: DesignSnapshot) { design = value; },
+    set design(value: DesignView) { design = value; },
     removeDesign: () => { design = null; },
     tick: () => { now += 1000; },
     quote: async () => unwrap(await service.freezeQuote("design", design!.version, "visitor")),

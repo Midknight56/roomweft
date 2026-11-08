@@ -2,18 +2,43 @@ import * as THREE from 'three';
 import { checkFit, footprintBounds, moveItem } from '../shared/fit';
 import type { Placement } from '../shared/api-types';
 import { DOOR, ROOM, WINDOW } from '../shared/room';
-import { collides, layoutOf, rotate, snap } from './helpers';
+import { collides, isDesktopWidth, layoutOf, rotate, snap } from './helpers';
 import type { RoomScene, Mode } from './scene';
 import { walkStart } from './walk-start';
 
 export function controls(view: RoomScene, move: (id: string, placement: Placement) => Promise<void>, select: (id: string | null) => void): { mode: (mode: Mode) => void; rotate: () => void; destroy: () => void } {
   const canvas = view.renderer.domElement; const keys = new Set<string>(); const events = new AbortController(); const signal = events.signal;
   const planTools = document.createElement('div'); planTools.className = 'plan-tools'; planTools.hidden = true;
-  const picker = document.createElement('select'); picker.setAttribute('aria-label', 'Select movable furniture'); planTools.append(picker);
+  const picker = document.createElement('select'); picker.setAttribute('aria-label', 'Select movable furniture');
   picker.addEventListener('change', () => { selection = picker.value || null; select(selection); }, { signal });
-  for (const [label, x, z] of [['Move west', -5, 0], ['Move east', 5, 0], ['Move north', 0, 5], ['Move south', 0, -5]] as const) {
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.addEventListener('click', () => { const item = view.layout.find(item => item.id === selection); if (item && !item.locked) void move(item.id, { x: snap(item.x + x), z: snap(item.z + z), rot: item.rot }); }, { signal }); planTools.append(button);
+  const buttons = (['Move west', 'Move east', 'Move north', 'Move south'] as const).map((label, index) => {
+    const [x, z] = [[-5, 0], [5, 0], [0, 5], [0, -5]][index];
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+    button.addEventListener('click', () => { const item = view.layout.find(item => item.id === selection); if (item && !item.locked) void move(item.id, { x: snap(item.x + x), z: snap(item.z + z), rot: item.rot }); }, { signal });
+    return button;
+  });
+  const details = document.createElement('details'); details.className = 'plan-details';
+  const summary = document.createElement('summary'); summary.textContent = 'Keyboard';
+  const row = document.createElement('div'); row.className = 'plan-tools-row';
+  details.append(summary, row);
+  details.addEventListener('toggle', () => { view.resize(); syncOverlay(); }, { signal });
+  const media = typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 700px)') : null;
+  function updateLayout(): void {
+    const isDesktop = media ? media.matches : isDesktopWidth(window.innerWidth);
+    if (isDesktop) {
+      row.append(picker, ...buttons);
+      if (!planTools.contains(details)) {
+        details.open = false;
+        planTools.replaceChildren(details);
+      }
+    } else {
+      details.remove();
+      planTools.replaceChildren(picker, ...buttons);
+    }
   }
+  updateLayout();
+  media?.addEventListener('change', () => { updateLayout(); view.resize(); syncOverlay(); }, { signal });
+  window.addEventListener('resize', updateLayout, { signal });
   view.host.append(planTools);
   const framingObserver = new ResizeObserver(() => { view.resize(); syncOverlay(); });
   framingObserver.observe(planTools);
@@ -149,10 +174,11 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     keys.clear(); touches.clear(); if (drag) { view.layout = drag.original; drag = null; preview(); }
     flushKeys(); view.setMode(mode);
-    const rotateButton = document.querySelector<HTMLButtonElement>('#rotate'); if (rotateButton) rotateButton.disabled = mode !== 'Plan';
+    const rotateButton = document.querySelector<HTMLButtonElement>('#rotate'); if (rotateButton) rotateButton.hidden = mode !== 'Plan';
     const caption = document.querySelector<HTMLElement>('.room-caption'); if (caption) caption.hidden = mode !== 'Overview';
     planTools.hidden = mode !== 'Plan';
     if (mode === 'Plan') {
+      details.open = false;
       picker.replaceChildren(new Option('Select an item', ''), ...view.layout.filter(item => !item.locked).map(item => new Option(item.label, item.id)));
       picker.value = selection ?? '';
     }

@@ -21,7 +21,7 @@ export function services(env: Env) {
   const checkout = new CheckoutService({ db: env.DB, paypal, designs: { get: async (id, visitor) => {
     try { return await designs.get(id, visitor); }
     catch (error) { if (error instanceof DesignError && error.code === 'not_found') return null; throw error; }
-  } }, returnUrl: new URL('/return', env.PUBLIC_ORIGIN).href, cancelUrl: new URL('/cancel', env.PUBLIC_ORIGIN).href });
+  }, applyPrices: (id, visitor, repriced, version) => designs.applyPrices(id, visitor, repriced, version) }, returnUrl: new URL('/return', env.PUBLIC_ORIGIN).href, cancelUrl: new URL('/cancel', env.PUBLIC_ORIGIN).href });
   const webhook = new CheckoutWebhook({ db: env.DB, paypal, checkout, webhookId: env.PAYPAL_WEBHOOK_ID ?? '' });
   return { channel3, ledger, designs, checkout, webhook };
 }
@@ -32,7 +32,7 @@ async function remaining(db: D1Database, key: string, cap: number, now: number):
 }
 function serviceResponse<T>(result: CheckoutResult<T>): Response {
   if (result.ok) return Response.json(result.value);
-  return Response.json({ error: result.error, code: result.code, ...(result.quote ? { quote: result.quote } : {}) }, { status: result.code === 'not_found' ? 404 : 409 });
+  return Response.json({ error: result.error, code: result.code, ...(result.quote ? { quote: result.quote } : {}), ...(result.design ? { design: result.design } : {}) }, { status: result.code === 'not_found' ? 404 : 409 });
 }
 function rotation(body: Record<string, unknown>): Rotation {
   const value = numberField(body, 'rot');
@@ -123,7 +123,8 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
   const body = await jsonBody(request);
   if (path === '/api/design') {
     if (typeof body.live !== 'boolean') throw new HttpError(400, 'invalid', 'Choose live or recorded products.');
-    const design = await s.designs.createDesign({ style: stringField(body, 'style'), budget: numberField(body, 'budget'), owned: owned(body), live: body.live, visitorId: visitor });
+    if (body.brief !== undefined && typeof body.brief !== 'string') throw new HttpError(400, 'invalid', 'Use words for the room brief.');
+    const design = await s.designs.createDesign({ brief: body.brief, style: stringField(body, 'style'), budget: numberField(body, 'budget'), owned: owned(body), live: body.live, visitorId: visitor });
     if (body.live && design.mode === 'recorded' && await remaining(env.DB, `design:${visitor}`, LIVE_DESIGNS_PER_DAY, now) === 0) {
       design.message = 'You have used all three live designs today. This is a recorded run.';
     }
@@ -154,9 +155,11 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
     if (!prior && !await takeCounter(env.DB, `refund:${visitor}`, REFUNDS_PER_DAY, now)) throw new HttpError(429, 'refund_cap', 'You have used all six refunds today. Please return tomorrow.');
     return serviceResponse(await s.checkout.refundLine(quoteId, lineId, visitor));
   }
+  const method = body.method ?? 'paypal';
+  if (method !== 'paypal' && method !== 'card') throw new HttpError(400, 'invalid', 'Choose a sandbox payment method.');
   if (['open', 'cancelled'].includes(quote.state) && !await takeCounter(env.DB, `checkout:${visitor}`, CHECKOUTS_PER_DAY, now)) throw new HttpError(429, 'checkout_cap', 'You have used all six checkouts today. Please return tomorrow.');
   let failed = false;
-  const result = await s.checkout.startCheckout(quoteId, visitor, { recheck: async lines => {
+  const result = await s.checkout.startCheckout(quoteId, visitor, { method, recheck: async lines => {
     const recheck = await recheckPrices(lines, s.channel3, now); failed = recheck.failed; return recheck.checked;
   } });
   if (failed) {
@@ -165,6 +168,7 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
     if (result.ok) result.value.error = result.value.error ? `${result.value.error}. Price not rechecked.` : 'Price not rechecked.';
     else if (result.quote) result.quote.error = `${result.quote.error ?? result.error} Price not rechecked.`;
   }
+  if (method === 'card' && result.ok) return serviceResponse(await s.checkout.receipt(quoteId, visitor, { reconcile: false }));
   return serviceResponse(result);
 }
 export default createWorker() satisfies ExportedHandler<Env>;

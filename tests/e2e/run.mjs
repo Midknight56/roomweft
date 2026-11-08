@@ -17,20 +17,26 @@ async function responseAfter(path, action) {
   const [result] = await Promise.all([response, action()]);
   assert.ok(result.ok(), 'API request must succeed.'); return result.json();
 }
-async function freezeAndPay() {
-  quote = await responseAfter('/api/quote', () => page.getByTestId('freeze-quote').click());
-  const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/checkout');
-  await page.getByTestId('pay').click();
-  const checkout = await response; assert.ok(checkout.ok()); return checkout.json();
+async function freezeAndPay(beforePay) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    quote = await responseAfter('/api/quote', () => page.getByTestId('freeze-quote').click());
+    const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/checkout');
+    if (beforePay) await beforePay();
+    await page.getByTestId('pay').click();
+    const checkout = await response; const answer = await checkout.json();
+    if (attempt === 0 && checkout.status() === 409 && answer.code === 'price_changed') { design = answer.design; continue; }
+    assert.ok(checkout.ok()); return answer;
+  }
 }
+
 try {
   browser = await launchBrowser();
   context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   page = await context.newPage(); page.setDefaultTimeout(15000);
   await step(1, 'Recorded room and four picks', async () => {
     design = await designResponse(page, () => page.goto(base.href)); await ready(page);
-    assert.equal(design.mode, 'recorded');
-    assert.match(await page.getByTestId('mode-label').innerText(), /Recorded run/);
+    assert.equal(design.mode, 'recorded'); assert.equal(design.style, 'calm-studio');
+    assert.match(await page.getByTestId('mode-label').innerText(), /Saved live run/);
     assert.equal(await page.locator('[data-testid^="slot-"]').count(), 4);
   });
   await step(2, 'Swap clears fit and increases version', async () => { design = await swapFailure(page, design); });
@@ -49,6 +55,30 @@ try {
     const refused = await context.request.post(new URL(`/api/design/${design.id}/move`, base).href, { data: { itemId: 'desk', x: 190, z: 160, rot: desk.rot } });
     assert.equal(refused.status(), 400);
     await page.getByTestId('mode-overview').click();
+  });
+  await step('4a', 'Test card pay creates a paid receipt with no login', async () => {
+    const cardContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    try {
+      const cardPage = await cardContext.newPage();
+      let room = await designResponse(cardPage, () => cardPage.goto(base.href)); await ready(cardPage);
+      room = await swapFailure(cardPage, room);
+      let frozen, sale;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const frozenResponse = cardPage.waitForResponse(response => new URL(response.url()).pathname === '/api/quote');
+        await cardPage.getByTestId('freeze-quote').click(); frozen = await (await frozenResponse).json();
+        const paymentResponse = cardPage.waitForResponse(response => new URL(response.url()).pathname === '/api/checkout');
+        await cardPage.getByTestId('pay-card').click(); const payment = await paymentResponse;
+        sale = await payment.json();
+        if (attempt === 0 && payment.status() === 409 && sale.code === 'price_changed') { room = sale.design; continue; }
+        assert.ok(payment.ok()); break;
+      }
+      assert.equal(sale.quote.id, frozen.id); assert.equal(sale.quote.state, 'paid'); assert.ok(sale.orderId); assert.ok(sale.captureId);
+      assert.equal(sale.lines.length, room.slots.filter(slot => slot.pick).length);
+      assert.ok(sale.lines.every(line => room.slots.some(slot => slot.slot === line.roomObjectId && slot.pick.id === line.productId)));
+      await cardPage.getByTestId('receipt').getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+      const text = await cardPage.getByTestId('receipt').innerText(); assert.ok(text.includes(sale.orderId)); assert.ok(text.includes(sale.captureId));
+      assert.equal(new URL(cardPage.url()).origin, base.origin);
+    } finally { await cardContext.close(); }
   });
   await step(4, 'Sandbox pay creates a linked paid receipt', async () => {
     // Use this visitor's context so the return keeps ownership of the frozen quote.
@@ -91,8 +121,10 @@ try {
     await page.goto(base.href); await ready(page);
     design = await designResponse(page, () => page.getByTestId('style-warm-reading').click());
     design = await swapFailure(page, design);
-    const saved = JSON.stringify(await page.evaluate(() => ({ ...localStorage })));
-    const checkout = await freezeAndPay();
+    let saved;
+    const checkout = await freezeAndPay(async () => {
+      saved = JSON.stringify(await page.evaluate(() => ({ ...localStorage })));
+    });
     const token = new URL(checkout.approveUrl).searchParams.get('token'); assert.ok(token);
     await page.goto(checkout.approveUrl);
     await page.goto(new URL(`/cancel?token=${encodeURIComponent(token)}`, base).href); await ready(page);

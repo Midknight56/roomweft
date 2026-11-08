@@ -1,4 +1,4 @@
-import type { DesignView, SlotView, QuoteView, RefundState } from '../shared/api-types';
+import type { Candidate, DesignView, SlotView, QuoteView, RefundState } from '../shared/api-types';
 import type { Footprint, FitReport, Point, Rotation } from '../shared/fit';
 import { footprintBounds } from '../shared/fit';
 import { NOMINAL_DIMS, OWNED_ITEMS, ROOM, SLOTS } from '../shared/room';
@@ -8,6 +8,9 @@ export const rotate = (value: Rotation): Rotation => ((value + 90) % 360) as Rot
 export const money = (cents: number): string => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 export const budgetText = (total: number, budget: number): string => total > budget ? `${money(total - budget)} over budget` : `${money(budget - total)} left in your budget`;
 export const unverifiedItemsText = (count: number): string => `${count} ${count === 1 ? 'item' : 'items'} with fit unverified`;
+export const missingSizeText = (candidate: Candidate): string => candidate.hasMeasurements ? 'Size not usable from the listing' : 'Size not listed';
+export const doorTightWarning = (tight: { smallestCm: number; openingCm: number } | null | undefined): string | null =>
+  tight ? `${tight.smallestCm} cm at its narrowest, ${tight.openingCm} cm door: tight to bring in` : null;
 export function fitBadge(fit: FitReport, id: string): { text: string; tone: 'alarm' | 'amber' | 'moss' } {
   if (fit.inside.includes(id)) return { text: 'Outside the wall margin', tone: 'alarm' };
   if (fit.doorSwing.includes(id)) return { text: 'Blocks the door swing', tone: 'alarm' };
@@ -42,6 +45,21 @@ export function projectPoint(ndc: { x: number; y: number; z: number }, rect: { l
 }
 export const slotLabel = (slot: SlotView['slot']): string => SLOTS.find(item => item.id === slot)?.label ?? slot;
 export const refundText = (state: RefundState): string => state === 'unknown' ? 'Checking refund' : `Refund ${state === 'requesting' ? 'pending' : state}`;
+export function paypalEventName(type: string): string {
+  switch (type) {
+    case 'CHECKOUT.ORDER.APPROVED':
+      return 'Order approved';
+    case 'PAYMENT.CAPTURE.COMPLETED':
+      return 'Payment captured';
+    case 'PAYMENT.CAPTURE.REFUNDED':
+      return 'Refund completed';
+    default:
+      return type;
+  }
+}
+export function eventTimeText(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(timestamp));
+}
 export function receiptStateText(state: QuoteView['state'], recorded = false): string {
   if (recorded) return 'Recorded sale, not paid';
   if (state === 'paid') return 'Paid in the PayPal sandbox';
@@ -65,3 +83,5 @@ export function restoredDesign(raw: string | null, quoteId: string): DesignView 
     return value;
   } catch { return null; }
 }
+export const shouldHidePhoneJump = (picksVisible: boolean, basketVisible: boolean): boolean => picksVisible || basketVisible;
+export const isDesktopWidth = (width: number): boolean => width >= 700;

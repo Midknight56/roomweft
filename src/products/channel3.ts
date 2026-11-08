@@ -1,5 +1,16 @@
 import type { Candidate, SourceRecord } from '../shared/api-types';
 import { dimsFromOffer } from '../shared/fit';
+import type { SlotId } from '../shared/room';
+
+export function withSlotDims<T extends Candidate>(candidate: T, slot: SlotId): T {
+  const raw = candidate.dimsRaw;
+  if (!raw) return candidate;
+  const hasMeasurements = Object.values(raw).some(value => {
+    const measurement = object(value);
+    return typeof measurement.number === 'number';
+  });
+  return { ...candidate, dims: dimsFromOffer(raw, slot === 'rug' ? 'rug' : undefined), hasMeasurements };
+}
 
 export type ProductCandidate = Candidate & { dimsRaw: Record<string, unknown> | null };
 export type SearchResult = { ok: true; candidates: ProductCandidate[]; source: SourceRecord }
@@ -12,7 +23,7 @@ function https(value: unknown): string | undefined {
   if (typeof value !== 'string') return;
   try { const url = new URL(value); if (url.protocol === 'https:' && !url.username && !url.password) return url.href; } catch { /* Invalid link. */ }
 }
-export function mapProduct(raw: unknown): ProductCandidate | null {
+export function mapProduct(raw: unknown, kind?: string): ProductCandidate | null {
   const p = object(raw);
   if (typeof p.id !== 'string' || typeof p.title !== 'string') return null;
   const offers = array(p.offers).map(object).filter(o => {
@@ -34,12 +45,12 @@ export function mapProduct(raw: unknown): ProductCandidate | null {
     ...(image ? { image } : {}), materials: strings(p.materials),
     colors: array(p.colors).map(object).sort((a,b) => Number(b.percentage ?? 0) - Number(a.percentage ?? 0))
       .map(c => c.hex).filter((v): v is string => typeof v === 'string' && /^#[\da-f]{6}$/i.test(v)).slice(0,3),
-    ...(typeof category === 'string' ? { category } : {}), dims: dimsFromOffer(offer.dimensions),
+    ...(typeof category === 'string' ? { category } : {}), dims: dimsFromOffer(offer.dimensions, kind),
     dimsRaw: typeof offer.dimensions === 'object' && offer.dimensions !== null ? object(offer.dimensions) : null,
   };
 }
 export function mapProducts(response: unknown): ProductCandidate[] {
-  return array(object(response).products).map(mapProduct).filter((p): p is ProductCandidate => p !== null);
+  return array(object(response).products).map(raw => mapProduct(raw)).filter((p): p is ProductCandidate => p !== null);
 }
 export async function takeCounter(db: D1Database, key: string, cap: number, now: number): Promise<boolean> {
   const day = new Date(now).toISOString().slice(0,10);

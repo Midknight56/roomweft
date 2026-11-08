@@ -1,12 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { Channel3, mapProduct, mapProducts, takeCounter } from '../../src/products/channel3';
+import { Channel3, mapProduct, mapProducts, takeCounter, withSlotDims } from '../../src/products/channel3';
 import { asD1, freshD1 } from './d1-fake';
 
 const sample = JSON.parse(readFileSync('docs/research/channel3-sample-chair.json','utf8')) as {products: Record<string,unknown>[]};
 const at=Date.UTC(2026,10,6,12);
 const reply=(data:unknown,status=200,headers?:HeadersInit)=>new Response(JSON.stringify(data),{status,headers});
 describe('product mapping',()=>{
+  const rugRaw = { length:{number:84,unit:'in'}, width:{number:60,unit:'in'}, height:{number:0.4,unit:'in'} };
+  it('passes the rug kind through mapping',()=>{
+    const product=sample.products[0], offer=(product.offers as Record<string,unknown>[])[0];
+    const raw={...product,offers:[{...offer,dimensions:rugRaw}]};
+    expect(mapProduct(raw)?.dims).toBeNull();
+    expect(mapProduct(raw,'rug')?.dims).toEqual({w:152.4,d:213.4,h:1});
+  });
+  it('repairs stale slot dimensions without mutating candidates and marks listing measurements',()=>{
+    const candidate={...mapProducts(sample)[0],dims:null,dimsRaw:rugRaw};
+    expect(withSlotDims(candidate,'rug')).toMatchObject({dims:{w:152.4,d:213.4,h:1},hasMeasurements:true});
+    expect(candidate.dims).toBeNull();
+    expect(withSlotDims(candidate,'side-table')).toMatchObject({dims:null,hasMeasurements:true});
+    expect(withSlotDims({...candidate,dimsRaw:{}},'rug')).toMatchObject({dims:null,hasMeasurements:false});
+    const absent={...candidate,dimsRaw:null};
+    expect(withSlotDims(absent,'rug')).toBe(absent);
+  });
   it('maps all five captured chairs with dimensions and cents',()=>{
     const candidates=mapProducts(sample);
     expect(candidates).toHaveLength(5);

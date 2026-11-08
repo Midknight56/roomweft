@@ -1,5 +1,8 @@
 export const PAYPAL_BASE_URL = "https://api-m.sandbox.paypal.com";
 
+// Published sandbox card: https://developer.paypal.com/tools/sandbox/card-testing/
+export const SANDBOX_TEST_CARD = { number: '4012888888881881', expiry: '2030-12', security_code: '123', name: 'RoomWeft Judge' };
+
 export interface Money { currency_code: string; value: string }
 export interface PayPalLink { rel: string; href: string }
 export interface PayPalResource {

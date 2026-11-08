@@ -27,6 +27,8 @@ export interface Candidate {
   materials: string[];
   category?: string;
   dims: Dimensions | null;
+  dimsRaw?: Record<string, unknown> | null;
+  hasMeasurements?: boolean;
 }
 
 export interface Placement { x: number; z: number; rot: Rotation; moved?: true; nominal?: true }
@@ -50,11 +52,13 @@ export interface SlotView {
   source: SourceRecord | null;
   /** Set when a slot search failed or found nothing: the plain sentence to show. */
   note?: string;
+  unavailable?: boolean;
 }
 
 export type DesignMode = "live" | "recorded" | "rules";
 
 export interface DesignView {
+  brief?: { text: string; understood: string; by: 'ai' | 'rules' | 'saved'; queries: Record<SlotId, string> };
   id: string;
   version: number;
   mode: DesignMode;
@@ -120,6 +124,7 @@ export interface ReceiptView {
   lines: (QuoteLine & { refund: { state: RefundState; amountCents: number; paypalId: string | null } | null })[];
   /** Room objects and how the plan stands against the receipt. */
   plan: { roomObjectId: string; status: "paid" | "returned" }[];
+  events: { type: string; receivedAt: number }[];
   recorded?: boolean;
   amountMismatch?: boolean;
 }
@@ -132,4 +137,4 @@ export interface StatusView {
   judgeLogin?: { email: string; password: string };
 }
 
-export interface ApiError { error: string; code: string }
+export interface ApiError { error: string; code: string; quote?: QuoteView; design?: DesignView }

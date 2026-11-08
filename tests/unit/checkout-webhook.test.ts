@@ -13,6 +13,17 @@ function verify(h: ReturnType<typeof harness>, status = "SUCCESS") {
 const rawEvent = (quoteId: string, type = "PAYMENT.CAPTURE.COMPLETED", id = "event") => JSON.stringify({ id, event_type: type, resource: { id: "capture", custom_id: `roomweft:${quoteId}`, status: "COMPLETED" } });
 
 describe("verified sandbox webhooks", () => {
+  it("verifies card deliveries and reconciles their capture through the shared handler", async () => {
+    const h = harness(); const quote = await h.quote();
+    h.network.steps.push({ path: "/v2/checkout/orders", body: { id: "order", status: "COMPLETED", purchase_units: [{ payments: { captures: [{ id: "capture", status: "PENDING" }] } }] } });
+    await h.service.startCheckout(quote.id, "visitor", { method: "card" });
+    verify(h, "FAILURE");
+    expect((await webhook(h).handleWebhook(headers(), rawEvent(quote.id))).status).toBe(401);
+    expect(h.db.sqlite.prepare("SELECT state FROM quotes WHERE id = ?").get(quote.id)!.state).toBe("capture_unknown");
+    verify(h); h.network.steps.push(readOrder(completed()));
+    expect((await webhook(h).handleWebhook(headers(), rawEvent(quote.id))).status).toBe(200);
+    expect(unwrap(await h.service.receipt(quote.id, "visitor"))).toMatchObject({ orderId: "order", captureId: "capture", quote: { state: "paid" } });
+  });
   it("rejects a bad signature with 401 and stores nothing", async () => {
     const h = harness();
     verify(h, "FAILURE");

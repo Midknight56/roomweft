@@ -1022,7 +1022,11 @@
             "#7a6c5a"
           ],
           "category": "rugs",
-          "dims": null,
+          "dims": {
+            "w": 61,
+            "d": 91.4,
+            "h": 1
+          },
           "dimsRaw": {
             "length": {
               "number": 3,
@@ -1060,7 +1064,7 @@
           "dims": {
             "w": 68.6,
             "d": 213.4,
-            "h": 213.4
+            "h": 1
           },
           "dimsRaw": {
             "length": {

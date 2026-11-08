@@ -2,6 +2,8 @@
 // Granite: 1542 neurons per M input tokens, 10158 per M output tokens. $0.011 per 1,000 Neurons;
 // 10,000 Neurons per day at no charge. The 10,500 character prompt cap is about 3,000 input tokens.
 // 3,000 x 1542 / 1e6 + 400 x 10158 / 1e6 = 4.626 + 4.0632 = 8.6892 neurons, below the 10 neuron hold.
+// Brief: 600 x 1542 / 1e6 + 200 x 10158 / 1e6 = 0.9252 + 2.0316 = 2.9568 neurons, below the 10 neuron hold.
+// Per visitor: 3 live designs x 2 calls x 10 neurons held = 60 neurons at most, still $0 within the shared cap.
 // The app's 1,200/day covers at least 138 worst case call costs; the hold can stop calls earlier near the cap.
 // Every hackathon app shares this ledger. The 9,500 account cap is under the free 10,000, so calls cost $0.
 export const APP = 'roomweft';

@@ -100,12 +100,12 @@ describe("sandbox orders and captures", () => {
   it("a checkout while another quote for the same design is capturing makes no new order", async () => {
     const h = harness();
     await h.order();
-    const next = await h.quote();
     let release!: () => void;
     const wait = new Promise<void>(resolve => { release = resolve; });
     h.network.steps.push({ ...captureStep(), wait });
     const capturing = h.service.completeReturn("order", "visitor");
     for (let n = 0; n < 100 && !h.network.payments().some(call => call.path.endsWith("/capture")); n++) await Promise.resolve();
+    const next = await h.quote();
     try { expect(await h.service.startCheckout(next.id, "visitor")).toMatchObject({ ok: false, code: "checking_payment" }); }
     finally { release(); }
     unwrap(await capturing);
@@ -280,5 +280,47 @@ describe("sandbox orders and captures", () => {
     h.network.steps.push(readOrder({ status: "COMPLETED", purchase_units: [{ payments: { captures: [{ status: "DENIED" }] } }] }));
     expect(unwrap(await h.service.reconcile(quote.id)).quote.state).toBe("declined");
     expect(h.network.payments()).toHaveLength(2);
+  });
+});
+
+describe("verified webhook lines on the receipt", () => {
+  it("lists only events for this quote, oldest first, with only type and receivedAt", async () => {
+    const h = harness();
+    const quote = await h.paid();
+    h.db.sqlite.prepare(
+      "INSERT INTO webhook_events (id, type, resource_id, custom_id, received_at, processed_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run("evt-newer", "PAYMENT.CAPTURE.COMPLETED", "res-2", `roomweft:${quote.id}`, 2000, null);
+    h.db.sqlite.prepare(
+      "INSERT INTO webhook_events (id, type, resource_id, custom_id, received_at, processed_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run("evt-older", "CHECKOUT.ORDER.APPROVED", "res-1", `roomweft:${quote.id}`, 1000, 1050);
+    h.db.sqlite.prepare(
+      "INSERT INTO webhook_events (id, type, resource_id, custom_id, received_at, processed_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run("evt-other", "PAYMENT.CAPTURE.COMPLETED", "res-3", "roomweft:other-quote", 1500, null);
+
+    const receipt = unwrap(await h.service.receipt(quote.id, "visitor"));
+    expect(receipt.events).toEqual([
+      { type: "CHECKOUT.ORDER.APPROVED", receivedAt: 1000 },
+      { type: "PAYMENT.CAPTURE.COMPLETED", receivedAt: 2000 },
+    ]);
+    expect(receipt.events.every(event => Object.keys(event).sort().join(",") === "receivedAt,type")).toBe(true);
+  });
+  it("caps event rows at 10, oldest first", async () => {
+    const h = harness();
+    const quote = await h.paid();
+    for (let i = 1; i <= 12; i++) {
+      h.db.sqlite.prepare(
+        "INSERT INTO webhook_events (id, type, resource_id, custom_id, received_at, processed_at) VALUES (?, ?, ?, ?, ?, ?)"
+      ).run(`evt-${i}`, "PAYMENT.CAPTURE.COMPLETED", `res-${i}`, `roomweft:${quote.id}`, 1000 + i, null);
+    }
+    const receipt = unwrap(await h.service.receipt(quote.id, "visitor"));
+    expect(receipt.events).toHaveLength(10);
+    expect(receipt.events[0].receivedAt).toBe(1001);
+    expect(receipt.events[9].receivedAt).toBe(1010);
+  });
+  it("returns an empty events array when no webhook rows exist", async () => {
+    const h = harness();
+    const quote = await h.paid();
+    const receipt = unwrap(await h.service.receipt(quote.id, "visitor"));
+    expect(receipt.events).toEqual([]);
   });
 });

@@ -11,6 +11,17 @@ export interface Door {
 export interface RoomWindow { wall: "north"; minX: number; maxX: number; sill: number; top: number }
 export interface Dimensions { w: number; d: number; h: number }
 export type SlotId = "reading-chair" | "floor-lamp" | "side-table" | "rug";
+export const SLOT_NOUNS: Record<SlotId, string> = {
+  'reading-chair': 'reading chair', 'floor-lamp': 'floor lamp', 'side-table': 'side table', rug: 'area rug 5x7',
+};
+export const BRIEF_WORDS = [
+  'tall', 'slim', 'compact', 'low', 'small', 'wide', 'narrow', 'short', 'round', 'square', 'oval',
+  'black', 'white', 'grey', 'charcoal', 'navy', 'green', 'cream', 'beige', 'brown', 'blue', 'red', 'rust', 'natural',
+  'oak', 'walnut', 'wood', 'metal', 'brass', 'linen', 'wool', 'velvet', 'leather', 'jute', 'cotton', 'rattan',
+  'bamboo', 'glass', 'steel', 'ceramic', 'paper', 'adjustable', 'arc', 'swivel', 'upholstered', 'flatweave',
+  'plush', 'striped', 'warm', 'bright', 'soft', 'firm', 'woven', 'textured', 'padded', 'dimmable', 'storage',
+  'shelf', 'solid', 'neutral',
+] as const;
 /** Drawing boxes only. These never establish product fit. */
 export const NOMINAL_DIMS: Record<SlotId, Dimensions> = {
   'reading-chair': { w: 70, d: 70, h: 80 },

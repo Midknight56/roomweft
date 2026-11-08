@@ -1,5 +1,6 @@
 import type { RoomScene } from './scene';
 import { theme } from './theme';
+import { missingSizeText } from './helpers';
 export function threads(view: RoomScene, tooltip: HTMLElement): { select: (id: string | null) => void; destroy: () => void } {
   const ns = 'http://www.w3.org/2000/svg'; const svg = document.createElementNS(ns, 'svg'); svg.classList.add('threads'); svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS(ns, 'path'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', theme.thread); path.setAttribute('stroke-width', '2'); path.setAttribute('pathLength', '1'); svg.append(path); document.body.append(svg);
@@ -18,7 +19,7 @@ export function threads(view: RoomScene, tooltip: HTMLElement): { select: (id: s
     const item = view.design?.slots.find(slot => slot.slot === selected); const owned = view.layout.find(item => item.id === selected);
     tooltip.hidden = !endpoint || !selected;
     if (endpoint && selected) {
-      tooltip.textContent = `${item?.pick?.title ?? owned?.label ?? ''}\nVisual approximation\n${item && !item.pick?.dims ? 'Size not listed, fit unverified' : 'Size from the listing'}`;
+      tooltip.textContent = `${item?.pick?.title ?? owned?.label ?? ''}\nVisual approximation\n${item?.pick && !item.pick.dims ? `${missingSizeText(item.pick)}, fit unverified` : 'Size from the listing'}`;
       if (!item) tooltip.textContent = `${owned?.label ?? ''}\nYour own furniture\n${owned?.locked ? 'Locked' : 'Movable'}`;
       const rect = view.host.getBoundingClientRect(); tooltip.style.left = `${Math.max(8, Math.min(rect.width - 220, endpoint.x - rect.left + 12))}px`; tooltip.style.top = `${Math.max(70, Math.min(rect.height - 100, endpoint.y - rect.top - 50))}px`;
     }

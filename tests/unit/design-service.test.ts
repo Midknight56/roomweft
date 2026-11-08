@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DesignService, designLayout, type DesignInput } from '../../src/design/service';
+import { CheckoutService } from '../../src/checkout/service';
+import { harness, orderStep, unwrap } from './checkout-helper';
 import { NeuronLedger } from '../../src/ai/ledger';
 import { validatePicks, type PickBinding } from '../../src/ai/pick';
 import { OWNED_ITEMS, SLOTS, STYLES, placeAtAnchor } from '../../src/shared/room';
@@ -34,6 +36,123 @@ function fixture(options:{fail?:boolean;ai?:boolean;empty?:boolean;unknown?:bool
   return {db,search,run,service,input};
 }
 describe('design service',()=>{
+  it('reads a live brief before searching and carries its style and budget through the design',async()=>{
+    const {service,input,run,search}=fixture({ai:true});
+    run.mockResolvedValueOnce({response:{style:'night-desk',budget:700,words:{'reading-chair':['charcoal'],'floor-lamp':['tall']},understood:'Deep colours and a tall lamp suit evening reading.'}});
+    const design=await service.createDesign({...input,brief:'I read in the evening'});
+    expect(search).toHaveBeenCalledWith('charcoal reading chair',280);
+    expect(search).toHaveBeenCalledWith('tall floor lamp',140);
+    expect(design).toMatchObject({style:'night-desk',budgetCents:70000,brief:{by:'ai',queries:{'reading-chair':'charcoal reading chair'}}});
+    expect((await service.get(design.id,input.visitorId)).brief).toEqual(design.brief);
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+  it('uses visitor settings and style queries after an invalid brief',async()=>{
+    const {service,input,run,search}=fixture({ai:true});
+    run.mockResolvedValueOnce({response:{style:'unlisted',budget:99999}});
+    const design=await service.createDesign({...input,brief:'Evening reading'});
+    expect(design).toMatchObject({style:input.style,budgetCents:60000,brief:{by:'rules',queries:STYLES[0].queries}});
+    expect(search).toHaveBeenCalledWith(STYLES[0].queries['reading-chair'],240);
+  });
+  it('shows the recorded queries without a model call for a saved brief',async()=>{
+    const {service,input,run,search}=fixture({ai:true});
+    const design=await service.createDesign({...input,live:false,brief:'Evening reading'});
+    expect(run).not.toHaveBeenCalled(); expect(search).not.toHaveBeenCalled();
+    expect(design.brief).toEqual({text:'Evening reading',by:'saved',understood:'Saved run: searched with the Warm reading corner words.',
+      queries:Object.fromEntries(SLOTS.map(slot=>[slot.id,recordedRuns['warm-reading'].slots[slot.id].query]))});
+  });
+  it('does not read a brief after the live visitor counter is exhausted',async()=>{
+    const {service,input,run}=fixture({ai:true});
+    for (let i=0;i<3;i++) await service.createDesign(input);
+    run.mockClear();
+    const design=await service.createDesign({...input,brief:'Evening reading'});
+    expect(design.brief?.by).toBe('saved'); expect(run).not.toHaveBeenCalled();
+  });
+  it('does not add a model call for an empty brief and labels an unavailable reader by rules',async()=>{
+    const {service,input,run}=fixture({ai:true});
+    await service.createDesign({...input,brief:'  \n '}); expect(run).toHaveBeenCalledOnce();
+    const off=fixture();
+    expect(await off.service.createDesign({...off.input,brief:'Evening reading'})).toMatchObject({brief:{by:'rules'}});
+  });
+  it('saves rechecked prices once and the next frozen checkout can proceed',async()=>{
+    const {service,input,db}=fixture({unknown:true});
+    const design=await service.createDesign(input);
+    const slot=design.slots[0];
+    slot.alternates.push({candidate:{...slot.pick!},verified:false,fit:{passes:true,messages:[]},priceDeltaCents:0});
+    db.sqlite.prepare('UPDATE designs SET body=? WHERE id=?').run(JSON.stringify(design),design.id);
+    const h=harness();
+    const checkout=new CheckoutService({...h.options,db:asD1(db),designs:service});
+    const quote=unwrap(await checkout.freezeQuote(design.id,design.version,'visitor'));
+    const recheck=async()=>[{lineId:slot.slot,priceCents:20000}];
+    const result=await checkout.startCheckout(quote.id,'visitor',{recheck});
+    expect(result).toMatchObject({ok:false,code:'price_changed',quote:{state:'stale',repriced:[{oldCents:18600,newCents:20000}]},design:{version:2,totals:{totalCents:20000},fit:{budget:{total:20000,over:0}}}});
+    const updated=await service.get(design.id,'visitor');
+    expect(updated.slots[0].pick?.priceCents).toBe(20000);
+    expect(updated.slots[0].alternates.find(a=>a.candidate.id===slot.pick!.id)?.candidate.priceCents).toBe(20000);
+    const next=unwrap(await checkout.freezeQuote(design.id,updated.version,'visitor'));
+    h.network.steps.push(orderStep());
+    expect(await checkout.startCheckout(next.id,'visitor',{recheck})).toMatchObject({ok:true,value:{state:'approving',totalCents:20000}});
+    expect((await service.get(design.id,'visitor')).version).toBe(2);
+    await expect(service.get(design.id,'other')).rejects.toMatchObject({code:'not_found'});
+  });
+  it('blocks an unavailable pick through refresh until a different product is swapped in',async()=>{
+    const {service,input,search}=fixture({unknown:true});
+    search.mockResolvedValueOnce({ok:true,candidates:[{...small,dims:null},{...small,id:'replacement',dims:null}],source:{query:'chair',maxPrice:240,resultIds:['small','replacement'],retrievedAt:at,cached:false,origin:'live'}});
+    const design=await service.createDesign(input);
+    const h=harness();
+    const checkout=new CheckoutService({...h.options,db:asD1(h.db),designs:service});
+    const quote=unwrap(await checkout.freezeQuote(design.id,design.version,'visitor'));
+    expect(await checkout.startCheckout(quote.id,'visitor',{recheck:async()=>[{lineId:'reading-chair',priceCents:null}]})).toMatchObject({ok:false,code:'price_changed',quote:{state:'stale'},design:{version:2,fit:{passes:false}}});
+    let updated=await service.get(design.id,'visitor');
+    expect(updated.slots[0]).toMatchObject({pick:design.slots[0].pick,unavailable:true,note:'No longer available at this shop. Swap for another.'});
+    expect(updated.fit.messages.join(' ')).toContain('No longer available at this shop. Swap for another.');
+    expect(await checkout.freezeQuote(design.id,updated.version,'visitor')).toMatchObject({ok:false,code:'fit_failed'});
+    updated=await service.setLock(design.id,'visitor','bookshelf',true);
+    expect(updated.fit.passes).toBe(false);
+    await expect(service.swap(design.id,'visitor','reading-chair',design.slots[0].pick!.id)).rejects.toMatchObject({code:'invalid'});
+    const alternate=updated.slots[0].alternates[0];
+    expect(alternate.fit.passes).toBe(true);
+    updated=await service.swap(design.id,'visitor','reading-chair',alternate.candidate.id);
+    expect(updated.slots[0].unavailable).toBeUndefined(); expect(updated.slots[0].note).toBeUndefined();
+    expect(unwrap(await checkout.freezeQuote(design.id,updated.version,'visitor')).state).toBe('open');
+  });
+  it('uses the existing budget failure after a shop price rise',async()=>{
+    const {service,input}=fixture({unknown:true});
+    const design=await service.createDesign(input);
+    const updated=await service.applyPrices(design.id,'visitor',[{lineId:'reading-chair',oldCents:18600,newCents:61000}]);
+    expect(updated).toMatchObject({version:2,totals:{totalCents:61000,overCents:1000},fit:{passes:false,budget:{total:61000,budget:60000,over:1000}}});
+    expect(updated.fit.messages).toContain('The basket is over budget by $10.00.');
+  });
+  it('releases checkout ordering when the design price save fails',async()=>{
+    const {service,input}=fixture({unknown:true});
+    const design=await service.createDesign(input);
+    const h=harness();
+    const checkout=new CheckoutService({...h.options,designs:service});
+    const quote=unwrap(await checkout.freezeQuote(design.id,design.version,'visitor'));
+    vi.spyOn(service,'applyPrices').mockRejectedValueOnce(new Error('Save failed.'));
+    await expect(checkout.startCheckout(quote.id,'visitor',{recheck:async()=>[{lineId:'reading-chair',priceCents:20000}]})).rejects.toThrow('Save failed.');
+    expect(unwrap(await checkout.receipt(quote.id,'visitor')).quote.state).toBe('open');
+    expect(h.network.payments()).toHaveLength(0);
+  });
+  it('rejects stale price updates without overwriting a newer swap',async()=>{
+    const {service,input}=fixture({unknown:true});
+    const design=await service.createDesign(input);
+    await service.setLock(design.id,'visitor','bookshelf',true);
+    await expect(service.applyPrices(design.id,'visitor',[{lineId:'reading-chair',oldCents:18600,newCents:20000}],design.version)).rejects.toMatchObject({code:'changed'});
+    expect((await service.get(design.id,'visitor')).slots[0].pick?.priceCents).toBe(18600);
+  });
+  it.each(['recorded','live','cached'] as const)('repairs a stale rug in a %s list before verifying fit',async(origin)=>{
+    const rug={...candidate('lorre',10,10,3000),dims:null,
+      dimsRaw:{length:{number:84,unit:'in'},width:{number:60,unit:'in'},height:{number:0.4,unit:'in'}}};
+    const {service,input,search}=fixture();
+    recordedRuns[input.style as keyof typeof recordedRuns].slots.rug.candidates=[rug];
+    if (origin!=='recorded') search.mockImplementation(async(query,maxPrice)=>({ok:true,
+      candidates:query===STYLES[0].queries.rug?[rug]:[],
+      source:{query,maxPrice,resultIds:[rug.id],retrievedAt:at,cached:origin==='cached',origin:'live'}}));
+    const design=await service.createDesign({...input,live:origin!=='recorded'});
+    expect(design.slots.find(slot=>slot.slot==='rug')?.pick).toMatchObject({id:'lorre',dims:{w:152.4,d:213.4,h:1},hasMeasurements:true});
+    expect(designLayout(design).find(item=>item.id==='rug')?.dims).toBe('verified');
+    expect(design.fit.unverified).not.toContain('rug');
+  });
   it('uses keyed chat picks with clean public reasons and reported neurons',async()=>{
     const {service,input,run,db}=fixture({ai:true});
     run.mockResolvedValueOnce({choices:[{message:{content:JSON.stringify({'reading-chair':{id:'large',reason:'Soft cotton jute adds warmth and suits this quiet reading corner.'}})}}],usage:{neurons:1.518}});
@@ -113,10 +232,20 @@ describe('design service',()=>{
     expect({passes:swapped.fit.passes,messages:swapped.fit.messages}).toEqual(initial.slots[0].alternates[0].fit);
     expect(swapped.version).toBe(2); expect(swapped.fit.passes).toBe(true);
     expect(swapped.swapNote).toContain('58 cm wide'); expect(swapped.swapNote).toContain('clears the door swing');
+    expect(swapped.swapNote).toContain('fits through the 80 cm door');
     expect(swapped.swapNote).toContain('saves $54.00');
     expect(swapped.slots[0].alternates.map(a=>a.candidate.id)).toContain('large');
     expect(run).toHaveBeenCalledTimes(1);
     await expect(service.swap(initial.id,'visitor','reading-chair','foreign')).rejects.toThrow('Choose a product from this slot.');
+  });
+  it('adds fits through the door to the swap note when swapping from a tight pick to a not tight pick',async()=>{
+    const {service,input}=fixture({ai:true});
+    const initial=await service.createDesign(input);
+    const swapped=await service.swap(initial.id,'visitor','reading-chair','small');
+    expect(swapped.swapNote).toBe('Swapped for Jearey chair: 58 cm wide, clears the door swing by 18 cm, fits through the 80 cm door, saves $54.00.');
+    const swappedBack=await service.swap(initial.id,'visitor','reading-chair','large');
+    expect(swappedBack.swapNote).not.toContain('fits through the 80 cm door');
+    expect(swappedBack.swapNote).toBe('Swapped for Large chair: 90 cm wide, blocks the door swing, adds $54.00.');
   });
   it('reanchors the side table after a chair swap and previews the same layout',async()=>{
     const {service,input}=fixture({ai:true,table:true});

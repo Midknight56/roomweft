@@ -934,7 +934,11 @@
             "#788c95"
           ],
           "category": "rugs",
-          "dims": null,
+          "dims": {
+            "w": 160,
+            "d": 228.6,
+            "h": 1
+          },
           "dimsRaw": {
             "length": {
               "number": 7.5,
@@ -1038,7 +1042,11 @@
             "#6a503c"
           ],
           "category": "rugs",
-          "dims": null,
+          "dims": {
+            "w": 152.4,
+            "d": 213.4,
+            "h": 1
+          },
           "dimsRaw": {
             "length": {
               "number": 7,
@@ -1068,7 +1076,11 @@
             "#1c2836"
           ],
           "category": "rugs",
-          "dims": null,
+          "dims": {
+            "w": 121.9,
+            "d": 182.9,
+            "h": 1
+          },
           "dimsRaw": {
             "length": {
               "number": 6,

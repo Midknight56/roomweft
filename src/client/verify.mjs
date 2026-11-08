@@ -4,18 +4,21 @@ import { readFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 await mkdir('out/page-check', { recursive: true });
 const bundle = await build({ stdin: { contents: "export * from './src/shared/room'; export * from './src/shared/fit'; export * from './src/client/helpers';", resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'esm' });
-const { OWNED_ITEMS, ROOM, DOOR, WINDOW, layoutOf, checkFit } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const { OWNED_ITEMS, ROOM, DOOR, WINDOW, STYLES, layoutOf, checkFit } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const sceneBundle = await build({ entryPoints: ['src/client/scene.ts'], bundle: true, write: false, format: 'esm' });
 const pick = (id, price, w, d, h) => ({ id, title: ({ 'reading-chair': 'Linen reading chair', 'floor-lamp': 'Warm paper floor lamp', 'side-table': 'Small oak side table', rug: 'Woven wool rug' })[id], priceCents: price, currency: 'USD', url: 'https://example.com/item', domain: 'example.com', colors: ['#B98764'], materials: ['Wood', 'Linen'], dims: { w, d, h } });
 const source = { query: 'small room', maxPrice: 30000, resultIds: ['chair'], retrievedAt: 1793952000000, cached: true, origin: 'recorded' };
 function makeDesign(pass = false) {
-  const values = [['reading-chair', 25000, pass ? 60 : 90, pass ? 60 : 90, 80, pass ? 335 : 300, pass ? 65 : 55, 270], ['floor-lamp', 6000, 30, 30, 150, 55, 255, 0], ['side-table', 7000, 40, 40, 50, 165, 260, 0], ['rug', 9000, 170, 120, 10, 190, 150, 0]];
-  const design = { id: 'review-room', version: pass ? 2 : 1, mode: 'recorded', style: 'warm-reading', capturedAt: '2026-11-06', budgetCents: 60000, owned: OWNED_ITEMS.map(({ id, x, z, rot, locked }) => ({ id, x, z, rot, locked })), slots: values.map(([id, price, w, d, h, x, z, rot]) => ({ slot: id, pick: pick(id, price, w, d, h), by: 'recorded', reason: 'Soft fabric and warm wood for a small room.', placement: { x, z, rot }, alternates: [], source })), totals: { totalCents: 47000, budgetCents: 60000, overCents: 0, unverifiedCount: 0 }, labels: { search: 'recorded', ai: 'recorded' } };
+  const values = [['reading-chair', 25000, pass ? 60 : 86.4, pass ? 60 : 86.4, 80, pass ? 335 : 300, pass ? 65 : 55, 270], ['floor-lamp', 6000, 30, 30, 150, 55, 255, 0], ['side-table', 7000, 40, 40, 50, 165, 260, 0], ['rug', 9000, 170, 120, 10, 190, 150, 0]];
+  const design = { id: 'review-room', version: pass ? 2 : 1, mode: 'recorded', style: 'calm-studio', capturedAt: '2026-11-06', budgetCents: 90000, owned: OWNED_ITEMS.map(({ id, x, z, rot, locked }) => ({ id, x, z, rot, locked })), slots: values.map(([id, price, w, d, h, x, z, rot]) => ({ slot: id, pick: pick(id, price, w, d, h), by: 'recorded', reason: 'Soft fabric and warm wood for a small room.', placement: { x, z, rot }, alternates: [], source })), totals: { totalCents: 47000, budgetCents: 90000, overCents: 0, unverifiedCount: 0 }, labels: { search: 'recorded', ai: 'recorded' } };
+  design.brief = {text:'',by:'saved',understood:'Saved run: searched with the Calm studio words.',queries:STYLES[1].queries};
   design.fit = checkFit(layoutOf(design), ROOM, DOOR, WINDOW, { budget: design.budgetCents, prices: Object.fromEntries(design.slots.map(s => [s.slot, s.pick.priceCents])) });
   if (!pass) design.slots[0].alternates = [{ candidate: { ...pick('reading-chair', 21000, 60, 60, 80), id: 'small-chair' }, fit: { passes: true, messages: [] }, verified: true, priceDeltaCents: -4000 }];
   else { design.slots[0].pick.priceCents = 21000; design.totals.totalCents = 43000; design.swapNote = 'This chair clears the door and saves $40.00.'; }
   return design;
 }
-let design = makeDesign(); let quote; let receipt; let moveRefused = false; let scenesFail = false; let unknown = false; let moves = 0;
+let lastDesignBody; let design = makeDesign(); let quote; let receipt; let moveRefused = false; let scenesFail = false; let unknown = false; let moves = 0;
+  let priceChange = false;
   let pageError; const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 }); page.on('pageerror', error => { pageError = error; });
@@ -23,14 +26,26 @@ try {
     const request = route.request(); const url = new URL(request.url()); const path = url.pathname;
     const json = value => route.fulfill({ contentType: 'application/json', body: JSON.stringify(value) });
     if (url.hostname !== 'room.test') return route.abort();
+    if (path === '/scene-check.js') return route.fulfill({ contentType: 'text/javascript', body: sceneBundle.outputFiles[0].text });
     if (path === '/api/scenes') return scenesFail ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The room service is unavailable.', code: 'offline' }) }) : json({});
     if (path === '/api/status') return json({ search: { live: true, remainingToday: 10 }, ai: { live: false, remainingNeuronsToday: 0 }, sandbox: { live: true }, visitor: { liveDesignsLeft: 3, checkoutsLeft: 6, refundsLeft: 6 } });
-    if (path === '/api/design') return json(design);
+    if (path === '/api/design') { const body = request.postDataJSON(); lastDesignBody = body; assert.equal(body.style, 'calm-studio'); assert.equal(body.budget, 900); return json(design); }
     if (path.endsWith('/swap')) { design = makeDesign(true); return json(design); }
     if (path.endsWith('/move')) { moves++; if (moveRefused) return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'locked', error: 'This move was refused by the server.' }) }); const body = request.postDataJSON(); design.slots.find(s => s.slot === body.itemId).placement = { x: body.x, z: body.z, rot: body.rot }; design.version++; return json(design); }
     if (path === '/api/quote') { quote = { id: 'review-quote', designId: design.id, designVersion: design.version, lines: design.slots.map(s => ({ lineId: s.slot, roomObjectId: s.slot, productId: s.pick.id, title: s.pick.title, priceCents: s.pick.priceCents, currency: 'USD', url: s.pick.url, domain: s.pick.domain, fitStatus: 'fits', source })), totalCents: design.totals.totalCents, state: 'open' }; return json(quote); }
-    if (path === '/api/checkout') { quote.state = unknown ? 'capture_unknown' : 'approving'; return json(quote); }
-    if (path.startsWith('/api/receipt/')) return json(receipt ?? { quote, orderId: null, captureId: null, capturedCents: 0, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: quote.lines.map(line => ({ roomObjectId: line.roomObjectId, status: 'paid' })) });
+    if (path === '/api/checkout') {
+      if (priceChange) {
+        priceChange = false; design.version++; design.slots[1].pick.priceCents += 1000; design.totals.totalCents += 1000;
+        quote.state = 'stale'; quote.repriced = [{ lineId: 'floor-lamp', oldCents: 6000, newCents: 7000 }];
+        quote.error = 'Prices changed at the shop. Freeze a new quote.';
+        return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'price_changed', error: quote.error, quote, design }) });
+      }
+      if (request.postDataJSON().method === 'card') {
+        quote.state = 'paid'; receipt = { quote, orderId: 'card-order', captureId: 'card-capture', capturedCents: 43000, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: quote.lines.map(line => ({ roomObjectId: line.roomObjectId, status: 'paid' })), events: [{ type: 'CHECKOUT.ORDER.APPROVED', receivedAt: 1793952000000 }, { type: 'PAYMENT.CAPTURE.COMPLETED', receivedAt: 1793952005000 }] }; return json(receipt);
+      }
+      quote.state = unknown ? 'capture_unknown' : 'approving'; return json(quote);
+    }
+    if (path.startsWith('/api/receipt/')) return json(receipt ?? { quote, orderId: null, captureId: null, capturedCents: 0, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: quote.lines.map(line => ({ roomObjectId: line.roomObjectId, status: 'paid' })), events: [] });
     if (path === '/api/refund') { receipt.lines[0].refund = { state: 'completed', amountCents: 21000, paypalId: 'test-refund' }; receipt.plan[0].status = 'returned'; return json({ id: 'test-refund-record', quoteId: quote.id, lineId: receipt.lines[0].lineId, amountCents: 21000, state: 'completed', paypalId: 'test-refund' }); }
     const files = { '/': ['public/index.html', 'text/html'], '/app.js': ['public/app.js', 'text/javascript'], '/styles.css': ['public/styles.css', 'text/css'], '/favicon.svg': ['public/favicon.svg', 'image/svg+xml'] };
     if (files[path]) return route.fulfill({ contentType: files[path][1], body: await readFile(files[path][0]) });
@@ -38,6 +53,55 @@ try {
   });
   await page.goto('http://room.test/'); await page.getByRole('button', { name: 'Swap for one that fits', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Freeze quote', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByTestId('style-calm-studio').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByTestId('budget').inputValue(), '900');
+  await page.getByRole('heading', {name:'What RoomWeft understood',exact:true}).waitFor();
+  await page.getByText('Saved run: searched with the Calm studio words.',{exact:true}).waitFor();
+  assert.equal(await page.getByTestId('brief-understood').getAttribute('data-by'), 'saved');
+  for (const query of Object.values(STYLES[1].queries)) await page.getByText(`Searched: ${query}`,{exact:true}).waitFor();
+  const roomBrief = 'I read in the evening, under $700';
+  await page.getByRole('textbox',{name:'Tell RoomWeft about the room'}).fill(roomBrief);
+  await page.getByTestId('search-live').click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="search-live"]')?.disabled === false);
+  assert.equal(lastDesignBody.brief, roomBrief); assert.equal(lastDesignBody.live, true);
+  assert.equal(await page.getByRole('textbox',{name:'Tell RoomWeft about the room'}).inputValue(),roomBrief);
+  assert.ok((await page.locator('#room-finding').innerText()).includes('door swing'));
+  assert.equal(await page.getByTestId('pay-card').count(), 1);
+  assert.equal(await page.locator('#rotate').isVisible(), false);
+  assert.equal(await page.locator('#panel .pick .amber').filter({ hasText: '86 cm at its narrowest, 80 cm door: tight to bring in' }).count(), 1);
+  for (const width of [1440, 390, 360]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(await page.locator('.room-caption').evaluate(caption => { const a = caption.getBoundingClientRect(); const b = document.querySelector('.view-modes').getBoundingClientRect(); return a.top >= b.bottom || a.left >= b.right; }), true, 'caption clears view buttons');
+    if (width === 360 || width === 390) {
+      assert.equal(await page.locator('.room-caption').evaluate(caption => {
+        const a = caption.getBoundingClientRect();
+        const canvas = document.querySelector('#room canvas').getBoundingClientRect();
+        return a.top >= canvas.bottom || a.bottom <= canvas.top || a.left >= canvas.right || a.right <= canvas.left;
+      }), true, 'caption does not overlap canvas');
+    }
+    await page.screenshot({ path: `out/page-check/review-opening-${width}.png` });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const stickyLink = page.getByRole('link', { name: 'Picks and basket' });
+  assert.equal(await stickyLink.isVisible(), true, 'sticky link is visible on first load');
+  await stickyLink.click();
+  const picksHeading = page.getByRole('heading', { name: 'Picks' });
+  await picksHeading.waitFor();
+  assert.equal(await picksHeading.evaluate(node => {
+    const box = node.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= window.innerHeight;
+  }), true, 'picks heading comes into view');
+  await page.waitForFunction(() => document.querySelector('#phone-jump')?.hidden === true);
+  assert.equal(await stickyLink.isVisible(), false, 'sticky link is hidden when picks is on screen');
+  const backToRoom = page.getByRole('link', { name: 'Back to room' });
+  await backToRoom.click();
+  await page.waitForFunction(() => document.querySelector('#phone-jump')?.hidden === false);
+  assert.equal(await page.locator('#room').evaluate(node => {
+    const box = node.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= window.innerHeight;
+  }), true, 'room view is brought back');
+  assert.equal(await stickyLink.isVisible(), true, 'sticky link visible again when room is back');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: 'out/page-check/review-desktop.png' });
   await page.getByRole('button', { name: 'Swap for one that fits', exact: true }).click(); await page.getByText('This chair clears the door and saves $40.00.').waitFor();
   assert.equal(design.fit.passes, true, JSON.stringify(design.fit.messages));
@@ -50,13 +114,28 @@ try {
   assert.equal(moves, 1); assert.equal(design.slots[0].placement.x, 325);
   moveRefused = true; start = await coordinate(325, 65); end = await coordinate(315, 65);
   await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 5 }); await page.mouse.up(); await page.getByText('This move was refused by the server.').waitFor(); assert.equal(moves, 2); assert.equal(design.slots[0].placement.x, 325);
-  moveRefused = false; await page.getByRole('combobox', { name: 'Select movable furniture' }).selectOption('reading-chair'); await page.getByRole('button', { name: 'Rotate ↻', exact: true }).click(); await page.waitForTimeout(100); assert.equal(design.slots[0].placement.rot, 0);
+  moveRefused = false;
+  const keyboardDetails = page.locator('.plan-tools details');
+  assert.equal(await keyboardDetails.count(), 1, 'keyboard details inside plan tools on desktop');
+  assert.equal(await keyboardDetails.evaluate(node => node.open), false, 'keyboard details closed on desktop');
+  assert.equal(await keyboardDetails.locator('summary').innerText(), 'Keyboard', 'details summary is Keyboard');
+  assert.equal(await page.getByRole('combobox', { name: 'Select movable furniture' }).isVisible(), false, 'plan tools closed by default');
+  await keyboardDetails.locator('summary').click();
+  assert.equal(await keyboardDetails.evaluate(node => node.open), true, 'keyboard details open on click');
+  assert.equal(await page.getByRole('combobox', { name: 'Select movable furniture' }).isVisible(), true, 'plan tools visible when open');
+  await page.getByRole('combobox', { name: 'Select movable furniture' }).selectOption('reading-chair'); await page.getByRole('button', { name: 'Rotate ↻', exact: true }).click(); await page.waitForTimeout(100); assert.equal(design.slots[0].placement.rot, 0);
   await page.screenshot({ path: 'out/page-check/review-plan.png' });
   await page.getByRole('button', { name: 'Walk view', exact: true }).click(); await page.waitForTimeout(750); await page.screenshot({ path: 'out/page-check/review-walk.png' }); await page.locator('#room canvas').focus(); await page.keyboard.press('ArrowUp'); await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Freeze quote', exact: true }).click(); await page.getByText('Frozen total $430.00').waitFor();
+  await page.getByTestId('pay-card').click(); await page.getByText('Capture card-capture').waitFor();
+  await page.getByTestId('receipt').getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+  await page.getByTestId('receipt').getByText('Payment captured', { exact: true }).waitFor();
+  await page.getByTestId('receipt').getByText('Signature verified', { exact: true }).first().waitFor();
+  assert.equal(await page.locator('#receipt').evaluate(node => { const box = node.getBoundingClientRect(); return box.top >= 0 && box.top < innerHeight; }), true);
+  receipt = undefined; await page.getByTestId('freeze-quote').click(); await page.getByText('Frozen total $430.00').waitFor();
   unknown = true; await page.getByRole('button', { name: 'Pay with PayPal (sandbox)', exact: true }).click(); await page.getByText('Checking payment', { exact: true }).waitFor(); assert.equal(await page.getByRole('button', { name: 'Pay with PayPal (sandbox)', exact: true }).count(), 0);
   await page.reload(); await page.getByText('Checking payment', { exact: true }).waitFor(); assert.equal(await page.getByRole('button', { name: 'Pay with PayPal (sandbox)', exact: true }).count(), 0);
-  receipt = { quote: { ...quote, state: 'paid' }, orderId: 'test-order', captureId: 'test-capture', capturedCents: 43000, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: quote.lines.map(line => ({ roomObjectId: line.roomObjectId, status: 'paid' })) };
+  receipt = { quote: { ...quote, state: 'paid' }, orderId: 'test-order', captureId: 'test-capture', capturedCents: 43000, refundedCents: 0, lines: quote.lines.map(line => ({ ...line, refund: null })), plan: quote.lines.map(line => ({ roomObjectId: line.roomObjectId, status: 'paid' })), events: [{ type: 'CHECKOUT.ORDER.APPROVED', receivedAt: 1793952000000 }, { type: 'PAYMENT.CAPTURE.COMPLETED', receivedAt: 1793952005000 }] };
   await page.evaluate(saved => sessionStorage.setItem('roomweft-payment-room', JSON.stringify(saved)), { quoteId: quote.id, design });
   await page.goto('http://room.test/?receipt=review-quote'); await page.getByText('Capture test-capture').waitFor(); await page.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor(); await page.getByRole('button', { name: 'Refund this item', exact: true }).first().click(); await page.getByText('Refund completed', { exact: true }).waitFor(); await page.getByText('Returned', { exact: true }).waitFor();
   await page.reload(); await page.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor(); await page.getByText('Returned', { exact: true }).waitFor();
@@ -73,6 +152,11 @@ try {
   }
   for (const viewport of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1440, height: 1000 }]) {
     await page.setViewportSize(viewport); await page.getByRole('button', { name: 'Plan view', exact: true }).click(); await page.waitForTimeout(100);
+    if (viewport.width < 700) {
+      assert.equal(await page.locator('.plan-tools details').count(), 0, `${viewport.width}px keeps row open with no details`);
+    } else {
+      assert.equal(await page.locator('.plan-tools details').count(), 1, `${viewport.width}px has keyboard details`);
+    }
     assert.equal(await page.locator('.plan-tools').evaluate(tools => { const floor = document.querySelector('[data-testid="plan-floor"]'); const a = tools.getBoundingClientRect(); const b = floor.getBoundingClientRect(); return a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom; }), true, `${viewport.width}px plan tools overlap floor`);
     const framing = await page.locator('#room').evaluate(host => {
       const floor = host.querySelector('[data-testid="plan-floor"]').getBoundingClientRect();
@@ -90,8 +174,34 @@ try {
   await page.setViewportSize({ width: 360, height: 800 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'phone overflow');
   receipt.recorded = true; await page.reload(); await page.getByText('Recorded receipt, makes no payment', { exact: true }).waitFor(); assert.equal(await page.getByRole('button', { name: 'Refund this item', exact: true }).first().isDisabled(), true);
+  assert.equal(await page.locator('#receipt').getByRole('heading', { name: 'PayPal events' }).count(), 0);
   receipt = undefined; design.mode = 'rules'; design.labels.ai = 'rules'; await page.goto('http://room.test/'); await page.getByText('Picked by rules, no AI today', { exact: true }).waitFor();
-  design.slots[0].pick.dims = null; design.slots[3].pick.dims = null; design.fit.unverified = ['reading-chair', 'rug']; design.totals.unverifiedCount = 2; await page.reload(); await page.locator('.pick .badge').filter({ hasText: 'Fit unverified' }).first().waitFor();
+  design.slots[0].pick.dims = null; design.slots[0].pick.hasMeasurements = true; design.slots[3].pick.dims = null; design.fit.unverified = ['reading-chair', 'rug']; design.totals.unverifiedCount = 2; await page.reload(); await page.locator('.pick .badge').filter({ hasText: 'Fit unverified' }).first().waitFor();
+  await page.getByTestId('slot-rug').getByText('Size not listed', { exact: true }).waitFor();
+  await page.getByTestId('slot-reading-chair').getByText('Size not usable from the listing', { exact: true }).waitFor();
+  await page.getByTestId('slot-reading-chair').hover();
+  await page.getByText('Size not usable from the listing, fit unverified', { exact: false }).waitFor();
+  const statuses = await page.evaluate(async saved => {
+    const { RoomScene } = await import('/scene-check.js');
+    const host = document.createElement('div'); host.style.cssText = 'width:800px;height:600px;position:fixed;left:-900px'; document.body.append(host);
+    const view = new RoomScene(host);
+    try {
+      view.update(saved, { plan: [{ roomObjectId: 'reading-chair', status: 'returned' }] });
+      return ['Overview', 'Walk', 'Plan'].map(mode => {
+        view.setMode(mode);
+        const sprites = []; view.pieces.traverse(child => { if (child.isSprite && child.visible) sprites.push(child.name); });
+        const returned = view.objects.get('reading-chair');
+        const opacity = []; returned.traverse(child => { if (child.isMesh) opacity.push(child.material.opacity); });
+        return { mode, sprites, opacity, outlines: view.regions.children.map(child => child.name) };
+      });
+    } finally { view.destroy(); host.remove(); }
+  }, design);
+  for (const status of statuses) {
+    assert.equal(status.sprites.includes('Fit unverified'), status.mode === 'Plan', `${status.mode} unverified sprite`);
+    assert.equal(status.sprites.includes('Returned'), status.mode === 'Plan', `${status.mode} returned sprite`);
+    assert.ok(status.opacity.length && status.opacity.every(value => value === .3), 'returned piece stays translucent');
+    assert.ok(status.outlines.includes('floor-reading-chair') && status.outlines.includes('floor-rug'), 'status floor outlines stay present');
+  }
   await page.setViewportSize({ width: 1440, height: 1000 });
   for (const mode of ['Plan', 'Overview', 'Walk']) {
     await page.getByRole('button', { name: `${mode} view`, exact: true }).click();
@@ -100,6 +210,18 @@ try {
     assert.equal(await page.locator('#room canvas').evaluate(canvas => canvas.style.transform), mode === 'Plan' ? 'scaleX(-1)' : '');
     await page.screenshot({ path: `out/page-check/review-unverified-${mode.toLowerCase()}.png` });
   }
+  receipt = undefined; quote = undefined; unknown = false; design = makeDesign(true);
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+  await page.goto('http://room.test/');
+  await page.getByTestId('freeze-quote').click(); await page.getByText('Frozen total $430.00').waitFor();
+  priceChange = true; await page.getByTestId('pay-card').click();
+  await page.getByText('Floor lamp: $60.00 \u2192 $70.00', { exact: true }).waitFor();
+  assert.ok((await page.locator('#panel').innerText()).includes('Prices changed at the shop. Freeze a new quote.'));
+  await page.getByText('$440.00 of $900.00', { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('pay-card').isDisabled(), true);
+  assert.equal(await page.getByTestId('freeze-quote').isEnabled(), true);
+  await page.getByTestId('freeze-quote').click(); await page.getByText('Frozen total $440.00').waitFor();
+  await page.getByTestId('pay-card').click(); await page.getByText('Capture card-capture').waitFor();
   scenesFail = true; await page.goto('http://room.test/'); await page.getByRole('button', { name: 'Retry', exact: true }).waitFor(); scenesFail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click(); await page.getByRole('heading', { name: 'Your room' }).waitFor();
-  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry'], pageErrors: [] }));
+  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
 } finally { await browser.close(); }

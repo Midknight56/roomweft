@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approvalUrl, budgetText, checkoutAllowed, collides, fitBadge, layoutOf, money, paymentLocked, projectPoint, quoteChanged, receiptStateText, refundText, restoredDesign, rotate, slotLabel, snap } from '../../src/client/helpers';
+import { approvalUrl, budgetText, checkoutAllowed, collides, doorTightWarning, eventTimeText, fitBadge, isDesktopWidth, layoutOf, money, paymentLocked, paypalEventName, projectPoint, quoteChanged, receiptStateText, refundText, restoredDesign, rotate, shouldHidePhoneJump, slotLabel, snap } from '../../src/client/helpers';
 import type { DesignView, QuoteView } from '../../src/shared/api-types';
 import { checkFit } from '../../src/shared/fit';
 import type { Footprint, FitReport } from '../../src/shared/fit';
@@ -49,6 +49,10 @@ describe('budget and fit copy', () => {
   ] as const)('shows the %s finding', (key, text) => { const report = fit(); report[key] = ['chair']; expect(fitBadge(report, 'chair')).toEqual({ text, tone: key === 'inside' || key === 'doorSwing' ? 'alarm' : 'amber' }); });
   it('shows overlap and walkway failures', () => { const report = fit(); report.overlaps = [['chair', 'desk']]; expect(fitBadge(report, 'chair').text).toBe('Overlaps another item'); report.overlaps = []; report.walkway.targets = [{ id: 'chair', reachable: false, target: { x: 0, z: 0 }, pinch: [] }]; expect(fitBadge(report, 'chair')).toEqual({ text: 'Walkway under 76 cm', tone: 'alarm' }); });
   it('gives failures priority over unverified sizes', () => { const report = fit(); report.unverified = report.doorSwing = ['chair']; expect(fitBadge(report, 'chair').tone).toBe('alarm'); });
+  it('formats the tight to bring in warning', () => {
+    expect(doorTightWarning({ smallestCm: 86, openingCm: 80 })).toBe('86 cm at its narrowest, 80 cm door: tight to bring in');
+    expect(doorTightWarning(null)).toBeNull();
+  });
   it('uses room labels for slots', () => { expect(slotLabel('reading-chair')).toBe('Reading chair'); });
 });
 describe('quote and payment guards', () => {
@@ -61,4 +65,40 @@ describe('quote and payment guards', () => {
   it('blocks design edits during payment, but allows replacement after a sale', () => { expect(paymentLocked(null)).toBe(false); for (const state of ['ordering', 'approving', 'capturing', 'capture_unknown'] as const) expect(paymentLocked({ ...quote(), state })).toBe(true); expect(paymentLocked({ ...quote(), state: 'paid' })).toBe(false); });
   it('allows resuming an approval', () => { expect(checkoutAllowed({ ...quote(), state: 'approving' }, design())).toBe(true); });
   it('accepts only a sandbox buyer approval link', () => { expect(approvalUrl('https://www.sandbox.paypal.com/checkoutnow?token=test')).toBe('https://www.sandbox.paypal.com/checkoutnow?token=test'); for (const url of ['javascript:alert(1)', 'https://example.com/', 'https://www.sandbox.paypal.com.evil.test', 'http://www.sandbox.paypal.com', 'https://user:pass@www.sandbox.paypal.com', 'invalid']) expect(approvalUrl(url)).toBeNull(); });
+});
+describe('paypal event names and time formatting', () => {
+  it.each([
+    ['CHECKOUT.ORDER.APPROVED', 'Order approved'],
+    ['PAYMENT.CAPTURE.COMPLETED', 'Payment captured'],
+    ['PAYMENT.CAPTURE.REFUNDED', 'Refund completed'],
+    ['PAYMENT.CAPTURE.PENDING', 'PAYMENT.CAPTURE.PENDING'],
+    ['CUSTOM.UNKNOWN.EVENT', 'CUSTOM.UNKNOWN.EVENT'],
+  ] as const)('maps %s to %s', (type, expected) => {
+    expect(paypalEventName(type)).toBe(expected);
+  });
+  it('formats timestamp to hours and minutes in locale', () => {
+    const formatted = eventTimeText(1793952000000);
+    expect(formatted).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
+describe('phone navigation and responsive helpers', () => {
+  it.each([
+    [false, false, false],
+    [true, false, true],
+    [false, true, true],
+    [true, true, true],
+  ])('shouldHidePhoneJump(%s, %s) returns %s', (picks, basket, expected) => {
+    expect(shouldHidePhoneJump(picks, basket)).toBe(expected);
+  });
+  it.each([
+    [320, false],
+    [360, false],
+    [390, false],
+    [699, false],
+    [700, true],
+    [768, true],
+    [1440, true],
+  ])('isDesktopWidth(%d) returns %s', (width, expected) => {
+    expect(isDesktopWidth(width)).toBe(expected);
+  });
 });

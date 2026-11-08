@@ -23,6 +23,7 @@ const visitor = 'a'.repeat(32), at = Date.UTC(2026, 10, 6, 12);
 const dbs: FakeD1[] = [];
 afterEach(() => { dbs.splice(0).forEach(db => db.sqlite.close()); vi.restoreAllMocks(); });
 function fixture() {
+  vi.spyOn(Date, 'now').mockReturnValue(at);
   const db = freshD1(LEDGER_SQL); dbs.push(db);
   const env: Env = { DB: asD1(db), LEDGER: asD1(db), AI: {} as Ai, PUBLIC_ORIGIN: 'https://room.test',
     ASSETS: { fetch: vi.fn(async () => new Response('<main>Room</main>', { headers: { 'content-type': 'text/html' } })) },
@@ -36,7 +37,7 @@ function fixture() {
   return { db, env, s, app, call };
 }
 const quote: QuoteView = { id: 'quote', designId: 'design', designVersion: 1, lines: [], totalCents: 100, state: 'paid' };
-const receipt: ReceiptView = { quote, orderId: 'order', captureId: 'capture', capturedCents: 100, refundedCents: 0, lines: [], plan: [] };
+const receipt: ReceiptView = { quote, orderId: 'order', captureId: 'capture', capturedCents: 100, refundedCents: 0, lines: [], plan: [], events: [] };
 const input = { style: 'warm-reading', budget: 600, owned: OWNED_ITEMS.map(({ id, x, z, rot, locked }) => ({ id, x, z, rot, locked })), live: false };
 function seedQuote(db: FakeD1, state = 'open') {
   db.sqlite.prepare(`INSERT INTO quotes(id, visitor, design_id, design_version, lines, total_cents, currency, hash, state, created_at, updated_at)
@@ -45,6 +46,15 @@ function seedQuote(db: FakeD1, state = 'open') {
 function cap(db: FakeD1, key: string, n: number) { db.sqlite.prepare('INSERT INTO counters(key,day,n) VALUES(?,?,?)').run(key, '2026-11-06', n); }
 
 describe('worker routes', () => {
+  it('accepts empty and long briefs, caps stored text and rejects non text briefs', async () => {
+    const {call} = fixture();
+    const long = 'Evening\n' + 'a'.repeat(250);
+    const response = await call('/api/design', {...input, brief:long});
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({brief:{text:long.replace('\n',' ').slice(0,200),by:'saved'}});
+    expect((await call('/api/design', {...input,brief:''})).status).toBe(200);
+    expect((await call('/api/design', {...input,brief:{text:'evening'}})).status).toBe(400);
+  });
   it.each(['/api/health', '/', '/missing', '/api/missing'])('makes a secure visitor cookie on %s', async path => {
     const { call } = fixture(); const response = await call(path, undefined, null);
     expect(response.headers.get('set-cookie')).toMatch(/^rw_vid=[a-f\d]{32}; HttpOnly; Secure; SameSite=Lax; Path=\/; Max-Age=31536000$/);
@@ -188,6 +198,20 @@ describe('worker routes', () => {
 
 const line: QuoteLine = { lineId: 'reading-chair', roomObjectId: 'reading-chair', productId: 'chair', title: 'Chair', priceCents: 100, currency: 'USD', url: 'https://shop.test', domain: 'shop.test', fitStatus: 'fits', source: { query: 'chair', maxPrice: 100, resultIds: ['chair'], retrievedAt: at, cached: false, origin: 'recorded' } };
 describe('worker price rechecks', () => {
+  it.each(['card','paypal'])('returns the saved repriced design with the 409 for %s',async(method)=>{
+    const {call,s,db}=fixture();
+    const initial=await (await call('/api/design',input)).json() as DesignView;
+    const design=await s.designs.swap(initial.id,visitor,'reading-chair','small');
+    const slot=design.slots[0];
+    slot.source=null;
+    db.sqlite.prepare('UPDATE designs SET body=? WHERE id=?').run(JSON.stringify(design),design.id);
+    vi.spyOn(s.channel3,'product').mockResolvedValue({ok:true,candidates:[{...slot.pick!,priceCents:4500,dimsRaw:null}],source:{query:'chair',maxPrice:100,resultIds:[slot.pick!.id],retrievedAt:at,cached:false,origin:'live'}});
+    const frozen=await (await call('/api/quote',{designId:design.id,version:design.version})).json() as QuoteView;
+    const response=await call('/api/checkout',{quoteId:frozen.id,method});
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({code:'price_changed',quote:{state:'stale',repriced:[{oldCents:3000,newCents:4500}]},design:{id:design.id,version:design.version+1,totals:{totalCents:4500}}});
+    expect((await s.designs.get(design.id,visitor)).totals.totalCents).toBe(4500);
+  });
   it('skips prices up to six hours old', async () => {
     const product = vi.fn(); expect(await recheckPrices([line], { product }, at + PRICE_MAX_AGE)).toEqual({ checked: [], failed: false }); expect(product).not.toHaveBeenCalled();
   });
@@ -208,4 +232,24 @@ describe('worker price rechecks', () => {
     expect(await (await call('/api/checkout', { quoteId: 'quote' })).json()).toHaveProperty('error', 'Price not rechecked.');
     expect(db.sqlite.prepare("SELECT error FROM quotes WHERE id='quote'").get()).toMatchObject({ error: 'Price not rechecked.' });
   });
+});
+
+it('shares the six checkout cap across card and PayPal and returns a card receipt', async () => {
+  const { call, db, s } = fixture(); seedQuote(db);
+  const methods: string[] = [];
+  vi.spyOn(s.checkout, 'startCheckout').mockImplementation(async (_id, _visitor, options) => { methods.push(options?.method ?? 'paypal'); return { ok: true, value: quote }; });
+  vi.spyOn(s.checkout, 'receipt').mockResolvedValue({ ok: true, value: receipt });
+  for (let n = 0; n < 6; n++) {
+    const method = n % 2 ? 'paypal' : 'card';
+    const response = await call('/api/checkout', { quoteId: 'quote', method });
+    expect(response.status).toBe(200);
+    if (method === 'card') expect(await response.json()).toMatchObject({ orderId: 'order', captureId: 'capture', quote: { state: 'paid' } });
+  }
+  for (const method of ['paypal', 'card']) expect((await call('/api/checkout', { quoteId: 'quote', method })).status).toBe(429);
+  expect(methods).toEqual(['card', 'paypal', 'card', 'paypal', 'card', 'paypal']);
+});
+it('rejects an unknown payment method before starting checkout', async () => {
+  const { call, db, s } = fixture(); seedQuote(db); const start = vi.spyOn(s.checkout, 'startCheckout');
+  expect((await call('/api/checkout', { quoteId: 'quote', method: 'cash' })).status).toBe(400);
+  expect(start).not.toHaveBeenCalled();
 });

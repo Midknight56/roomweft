@@ -118,3 +118,14 @@ it('uses one small text free padlock sprite', () => {
   try { const icon = padlock(); expect(icon).toBeInstanceOf(THREE.Sprite); expect(icon.scale.toArray()).toEqual([12, 12, 1]); expect(icon.name).toBe('padlock'); expect(fillText).not.toHaveBeenCalled(); dispose(icon); }
   finally { vi.unstubAllGlobals(); }
 });
+
+it('disposes walkway dots and strip meshes with regions', () => {
+  const root = new THREE.Group();
+  const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(3, 24), new THREE.MeshBasicMaterial({ color: theme.ink }), 3);
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(76, 50), new THREE.MeshBasicMaterial({ color: theme.thread }));
+  root.add(dots, strip);
+  dispose(root);
+  expect(root.userData.disposed).toBe(true);
+  expect(dots.userData.disposed).toBe(true);
+  expect(strip.userData.disposed).toBe(true);
+});

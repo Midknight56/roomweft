@@ -1,14 +1,15 @@
-import type { Candidate, DesignView, OwnedState, Placement, SlotView } from '../shared/api-types';
-import { checkFit, footprintBounds, moveItem, type Footprint, type Rotation } from '../shared/fit';
+import type { Candidate, DesignView, OwnedState, Placement, QuoteView, SlotView } from '../shared/api-types';
+import { checkFit, doorTight, footprintBounds, moveItem, type Footprint, type Rotation } from '../shared/fit';
 import { DOOR, NOMINAL_DIMS, OWNED_ITEMS, ROOM, SLOTS, STYLES, WINDOW, slotCapCents, placeAtAnchor, type SlotId } from '../shared/room';
-import { takeCounter, type SearchResult } from '../products/channel3';
+import { takeCounter, withSlotDims, type SearchResult } from '../products/channel3';
 import { pick, validatePicks, type CandidateLists, type PickBinding } from '../ai/pick';
 import type { NeuronLedger } from '../ai/ledger';
+import { readBrief, briefText, rulesUnderstanding } from '../ai/brief';
 import { recordedPicks, recordedRuns } from './recorded';
 import { rulesPick, rulesReason } from './rules';
 import { object } from '../products/channel3';
 
-export interface DesignInput { style: string; budget: number; owned: OwnedState[]; live: boolean; visitorId: string }
+export interface DesignInput { brief?: string; style: string; budget: number; owned: OwnedState[]; live: boolean; visitorId: string }
 export interface DesignOptions {
   db: D1Database; search: {search(query:string,maxPrice:number):Promise<SearchResult>};
   ledger: NeuronLedger; ai?: PickBinding; now?: () => number; id?: () => string;
@@ -43,7 +44,9 @@ function fitDesign(design: DesignView): DesignView['fit'] {
   fit.messages = fit.messages.filter(m=>!m.startsWith('The basket is over budget'));
   if (fit.budget.over) fit.messages.push(`The basket is over budget by $${(fit.budget.over/100).toFixed(2)}.`);
   for (const id of fit.unverified) fit.messages.push(`The ${SLOTS.find(s=>s.id===id)!.label} has unverified dimensions.`);
-  fit.passes = fit.passes && fit.budget.over === 0;
+  const unavailable = design.slots.filter(slot=>slot.unavailable);
+  for (const slot of unavailable) fit.messages.push(`${SLOTS.find(s=>s.id===slot.slot)!.label}: No longer available at this shop. Swap for another.`);
+  fit.passes = fit.passes && fit.budget.over === 0 && unavailable.length === 0;
   return fit;
 }
 function placementFor(design: DesignView, slot: SlotView, candidate: Candidate): Placement {
@@ -83,12 +86,15 @@ function refresh(design: DesignView): void {
   for (const slot of design.slots) for (const alt of slot.alternates) {
     const previousPick = slot.pick;
     const placements = design.slots.map(s=>s.placement);
+    const unavailable = slot.unavailable;
+    slot.unavailable = unavailable && alt.candidate.id === previousPick?.id;
     placeCandidate(design,slot,alt.candidate);
     const fit = fitDesign(design);
     alt.fit = {passes:fit.passes,messages:fit.messages};
     alt.verified = alt.candidate.dims !== null;
     alt.priceDeltaCents = alt.candidate.priceCents - (previousPick?.priceCents ?? 0);
     slot.pick = previousPick;
+    slot.unavailable = unavailable;
     design.slots.forEach((s,index)=>{ s.placement=placements[index]; });
   }
 }
@@ -96,8 +102,9 @@ export class DesignService {
   private now: () => number;
   constructor(private options: DesignOptions) { this.now=options.now ?? Date.now; }
   async createDesign(input: DesignInput): Promise<DesignView> {
-    const style = STYLES.find(s=>s.id===input.style);
+    let style = STYLES.find(s=>s.id===input.style);
     if (!style) return invalid('Choose a known style.');
+    if (input.brief !== undefined && typeof input.brief !== 'string') return invalid('Use words for the room brief.');
     if (!Number.isInteger(input.budget) || input.budget<150 || input.budget>3000) return invalid('Use a whole dollar budget from 150 to 3000.');
     if (typeof input.live!=='boolean' || typeof input.visitorId!=='string' || !input.visitorId.trim()) return invalid('Use a valid visitor and search choice.');
     if (!Array.isArray(input.owned) || input.owned.length!==OWNED_ITEMS.length || input.owned.some(i=>!i || typeof i!=='object')
@@ -110,37 +117,52 @@ export class DesignService {
     const desk=input.owned.find(i=>i.id==='desk')!, chair=input.owned.find(i=>i.id==='desk-chair')!;
     if (desk.locked!==chair.locked) return invalid('The desk and desk chair share one lock.');
     if (checkFit(ownedLayout(input.owned),ROOM,DOOR,WINDOW).inside.length) return invalid('Keep owned items inside the room.');
-    const recorded=recordedRuns[style.id];
     let live=false;
     if (input.live) { try { live=await takeCounter(this.options.db,`design:${input.visitorId}`,3,this.now()); } catch { /* Recorded fallback. */ } }
+    let budget = input.budget;
+    const text = briefText(input.brief ?? '');
+    let queries: Record<SlotId, string> = {...style.queries};
+    let brief: DesignView['brief'];
+    if (live && text) {
+      const answer = await readBrief(text, this.options.ai, this.options.ledger, budget);
+      if (answer.ok) {
+        style = STYLES.find(s => s.id === answer.brief.style)!;
+        budget = answer.brief.budget;
+        queries = answer.brief.queries;
+        brief = {text, understood: answer.brief.understood, by: 'ai', queries};
+      } else brief = {text, understood: rulesUnderstanding(style, budget), by: 'rules', queries};
+    }
+    const recorded=recordedRuns[style.id];
     const lists = {} as CandidateLists;
     const slots: SlotView[]=[];
     for (const slot of SLOTS) {
       let result: SearchResult={ok:false,reason:'off'};
-      if (live) { try { result=await this.options.search.search(style.queries[slot.id],Math.floor(slotCapCents(input.budget*100,slot.id)/100)); } catch { result={ok:false,reason:'error'}; } }
+      if (live) { try { result=await this.options.search.search(queries[slot.id],Math.floor(slotCapCents(budget*100,slot.id)/100)); } catch { result={ok:false,reason:'error'}; } }
       const rec=recorded.slots[slot.id];
-      lists[slot.id]=result.ok ? result.candidates : rec.candidates;
+      lists[slot.id]=(result.ok ? result.candidates : rec.candidates).map(candidate=>withSlotDims(candidate,slot.id));
       slots.push({slot:slot.id,pick:null,by:'none',reason:'',placement:null,alternates:[],source:result.ok ? result.source :
         {query:rec.query,maxPrice:rec.maxPrice,resultIds:rec.resultIds,retrievedAt:rec.retrievedAt,cached:false,origin:'recorded'},
         ...(!result.ok && live ? {note:`Live search is ${result.reason}. This slot uses recorded products.`} : {}),
         ...(result.ok && !result.candidates.length ? {note:'No products were found for this slot.'} : {})});
     }
     const hasLive=slots.some(s=>s.source?.origin==='live');
-    const pickInput={style,budgetCents:input.budget*100,candidates:lists};
+    if (!live) brief = {text, by: 'saved', understood: `Saved run: searched with the ${style.label} words.`,
+      queries: Object.fromEntries(SLOTS.map(slot => [slot.id, recorded.slots[slot.id].query])) as Record<SlotId, string>};
+    const pickInput={style,budgetCents:budget*100,candidates:lists};
     const response=hasLive ? await pick(pickInput,this.options.ai,this.options.ledger) : null;
     const stored=recordedPicks[style.id];
     const savedPicks=!hasLive && stored ? validatePicks({picks:Array.isArray(stored.picks)
       ? stored.picks.filter(entry=>object(entry).by==='ai') : []},pickInput) : [];
     for (const slot of slots) {
       const chosen=response?.ok ? response.picks.find(p=>p.slot===slot.slot) : savedPicks.find(p=>p.slot===slot.slot);
-      slot.pick=lists[slot.slot].find(c=>c.id===chosen?.id) ?? rulesPick(style,input.budget*100,slot.slot,lists[slot.slot]);
+      slot.pick=lists[slot.slot].find(c=>c.id===chosen?.id) ?? rulesPick(style,budget*100,slot.slot,lists[slot.slot]);
       slot.by=!slot.pick ? 'none' : slot.source?.origin==='recorded' ? 'recorded' : chosen?.by ?? 'rules';
-      slot.reason=slot.pick ? chosen?.reason ?? rulesReason(style,input.budget*100,slot.slot,slot.pick) : 'No product is available.';
+      slot.reason=slot.pick ? chosen?.reason ?? rulesReason(style,budget*100,slot.slot,slot.pick) : 'No product is available.';
       slot.alternates=lists[slot.slot].filter(c=>c.id!==slot.pick?.id).map(candidate=>({candidate,verified:candidate.dims!==null,fit:{passes:false,messages:[]},priceDeltaCents:0}));
     }
     const design: DesignView={id:(this.options.id ?? (()=>crypto.randomUUID()))(),version:1,mode:!hasLive?'recorded':response?.ok && response.picks.some(p=>p.by==='ai')?'live':'rules',
-      style:style.id,budgetCents:input.budget*100,owned:input.owned.map(i=>({...i})),slots,
-      fit:checkFit([],ROOM,DOOR,WINDOW),totals:{totalCents:0,budgetCents:input.budget*100,overCents:0,unverifiedCount:0},
+      brief,style:style.id,budgetCents:budget*100,owned:input.owned.map(i=>({...i})),slots,
+      fit:checkFit([],ROOM,DOOR,WINDOW),totals:{totalCents:0,budgetCents:budget*100,overCents:0,unverifiedCount:0},
       labels:{search:!hasLive?'recorded':slots.filter(s=>s.source?.origin==='live').every(s=>s.source?.cached)?'cached':'live',ai:!hasLive && savedPicks.some(p=>p.by==='ai')?'recorded':response?.ok && response.picks.some(p=>p.by==='ai')?'live':'rules'},
       ...(!hasLive?{capturedAt:recorded.capturedAt}:{})};
     for (const slot of slots) if (slot.pick) slot.placement=placementFor(design,slot,slot.pick);
@@ -162,23 +184,44 @@ export class DesignService {
     if (result.meta.changes!==1) throw new DesignError('changed','changed, reload');
     return design;
   }
+  async applyPrices(designId:string,visitor:string,repriced:NonNullable<QuoteView['repriced']>,expectedVersion?:number):Promise<DesignView> {
+    const design=await this.get(designId,visitor), version=design.version;
+    if (expectedVersion!==undefined && version!==expectedVersion) throw new DesignError('changed','changed, reload');
+    for (const entry of repriced) {
+      const slot=design.slots.find(s=>s.slot===entry.lineId);
+      if (!slot?.pick) continue;
+      if (entry.newCents===null) {
+        slot.unavailable=true;
+        slot.note='No longer available at this shop. Swap for another.';
+      } else {
+        slot.pick.priceCents=entry.newCents;
+        for (const alt of slot.alternates) if (alt.candidate.id===slot.pick.id) alt.candidate.priceCents=entry.newCents;
+      }
+    }
+    return this.save(design,visitor,version);
+  }
   async swap(designId:string,visitor:string,slotId:SlotId,productId:string):Promise<DesignView> {
     const design=await this.get(designId,visitor), version=design.version;
     const slot=design.slots.find(s=>s.slot===slotId);
     if (!slot) return invalid('Choose a known slot.');
-    const candidates=[...(slot.pick?[slot.pick]:[]),...slot.alternates.map(a=>a.candidate)];
+    const candidates=[...(slot.pick && !slot.unavailable?[slot.pick]:[]),...slot.alternates.map(a=>a.candidate)].filter(c=>!slot.unavailable || c.id!==slot.pick?.id);
     const candidate=candidates.find(c=>c.id===productId);
     if (!candidate) return invalid('Choose a product from this slot.');
     const difference=candidate.priceCents-(slot.pick?.priceCents ?? 0);
+    if (slot.unavailable) { delete slot.unavailable; delete slot.note; }
+    const openingCm = DOOR.opening.maxX - DOOR.opening.minX;
+    const wasTight = slotId !== 'rug' && Boolean(doorTight(slot.pick?.dims, openingCm));
     placeCandidate(design,slot,candidate); slot.by='rules';
     slot.alternates=candidates.filter(c=>c.id!==productId).map(c=>({candidate:c,verified:c.dims!==null,fit:{passes:false,messages:[]},priceDeltaCents:0}));
+    const isTight = slotId !== 'rug' && Boolean(doorTight(candidate.dims, openingCm));
     const width=candidate.dims ? `${candidate.dims.w} cm wide` : 'size unverified';
     const box=slotFootprint(slot);
     const bounds=box ? footprintBounds(box) : null;
     const clearance=bounds && candidate.dims ? doorClearance(bounds) : null;
     const blocksDoor=fitDesign(design).doorSwing.includes(slotId);
     const doorText=slotId==='rug' ? '' : clearance===null ? '' : blocksDoor ? ', blocks the door swing' : `, clears the door swing by ${Math.floor(clearance)} cm`;
-    design.swapNote=`Swapped for ${candidate.title}: ${width}${doorText}, ${difference<=0?'saves':'adds'} $${(Math.abs(difference)/100).toFixed(2)}.`;
+    const tightText=wasTight && candidate.dims && !isTight ? `, fits through the ${openingCm} cm door` : '';
+    design.swapNote=`Swapped for ${candidate.title}: ${width}${doorText}${tightText}, ${difference<=0?'saves':'adds'} $${(Math.abs(difference)/100).toFixed(2)}.`;
     slot.reason=design.swapNote;
     return this.save(design,visitor,version);
   }

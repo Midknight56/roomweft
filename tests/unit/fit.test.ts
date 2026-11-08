@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkFit, footprintBounds, moveItem, type Footprint } from "../../src/shared/fit";
+import { checkFit, doorTight, footprintBounds, moveItem, type Footprint } from "../../src/shared/fit";
 import { DOOR, OWNED_ITEMS, placeAtAnchor, ROOM, SLOTS, WINDOW } from "../../src/shared/room";
 
 const owned = (): Footprint[] => OWNED_ITEMS.map(item => ({ ...item, source: "owned", dims: "verified" }));
@@ -32,7 +32,13 @@ describe("fit", () => {
   });
   it("has a clear default walkway to the desk chair", () => {
     const result = fit(owned());
-    expect(result.walkway.targets).toEqual([{ id: "desk-chair", target: { x: 312.5, z: 185 }, reachable: true, pinch: [] }]);
+    expect(result.walkway.targets).toEqual([{
+      id: "desk-chair",
+      target: { x: 312.5, z: 185 },
+      reachable: true,
+      pinch: [],
+      path: [{ x: 262.5, z: 2.5 }, { x: 262.5, z: 137.5 }],
+    }]);
     expect(result.passes).toBe(true);
   });
   it("reaches the front zone of a 58 cm chair at the reading chair anchor", () => {
@@ -42,7 +48,11 @@ describe("fit", () => {
     });
     const result = fit([...owned(), reading]);
     expect(result.walkway.targets.find(target => target.id === reading.id)).toEqual({
-      id: "reading-chair", target: { x: 308, z: 33 }, reachable: true, pinch: [],
+      id: "reading-chair",
+      target: { x: 308, z: 33 },
+      reachable: true,
+      pinch: [],
+      path: [{ x: 262.5, z: 2.5 }],
     });
     expect(result.passes).toBe(true);
   });
@@ -82,6 +92,50 @@ describe("fit", () => {
     expect(result.walkway.reachable).toBe(false);
     expect(result.walkway.pinch.length).toBeGreaterThan(0);
     expect(result.passes).toBe(false);
+  });
+  it("starts reachable target paths in the door opening and ends them in the chair front zone with straight runs only", () => {
+    const layout = owned();
+    const result = fit(layout);
+    const reachable = result.walkway.targets.filter(t => t.reachable);
+    expect(reachable.length).toBeGreaterThan(0);
+    const inFrontZone = (targetChair: Footprint, p: { x: number; z: number }): boolean => {
+      const box = footprintBounds(targetChair);
+      const dirs: Record<number, { x: number; z: number }> = { 0: { x: 0, z: 1 }, 90: { x: 1, z: 0 }, 180: { x: 0, z: -1 }, 270: { x: -1, z: 0 } };
+      const dir = dirs[targetChair.rot];
+      const radius = dir.x === 0 ? (box.maxZ - box.minZ) / 2 : (box.maxX - box.minX) / 2;
+      const centre = { x: targetChair.x + dir.x * (radius + 30), z: targetChair.z + dir.z * (radius + 30) };
+      const halfW = dir.x === 0 ? (box.maxX - box.minX) / 2 + 30 : 30;
+      const halfD = dir.z === 0 ? (box.maxZ - box.minZ) / 2 + 30 : 30;
+      return p.x >= centre.x - halfW && p.x <= centre.x + halfW && p.z >= centre.z - halfD && p.z <= centre.z + halfD;
+    };
+    for (const target of reachable) {
+      const path = target.path ?? [];
+      expect(path.length).toBeGreaterThanOrEqual(1);
+      const start = path[0];
+      expect(start.x).toBeGreaterThanOrEqual(DOOR.opening.minX);
+      expect(start.x).toBeLessThanOrEqual(DOOR.opening.maxX);
+      expect(start.z).toBeLessThan(38);
+      const chairItem = layout.find(entry => entry.id === target.id)!;
+      const end = path[path.length - 1];
+      expect(inFrontZone(chairItem, end)).toBe(true);
+      for (let i = 0; i < path.length - 1; i++) {
+        expect(path[i].x === path[i + 1].x || path[i].z === path[i + 1].z).toBe(true);
+      }
+    }
+  });
+  it("ends the blocked walkway path within 10 cm of a pinch cell when the bookshelf blocks the route", () => {
+    const layout = owned().map(entry => entry.id === "bookshelf" ? { ...entry, x: 250, z: 85, rot: 0 as const } : entry);
+    const result = fit(layout);
+    expect(result.walkway.reachable).toBe(false);
+    expect(result.passes).toBe(false);
+    expect(result.messages).toContain("The walkway to the Desk chair is under 76 cm wide.");
+    const blocked = result.walkway.targets.find(t => t.id === "desk-chair");
+    expect(blocked?.reachable).toBe(false);
+    const path = blocked?.path ?? [];
+    expect(path.length).toBeGreaterThan(0);
+    const end = path[path.length - 1];
+    const distances = result.walkway.pinch.map(p => Math.hypot(p.x - end.x, p.z - end.z));
+    expect(Math.min(...distances)).toBeLessThanOrEqual(10);
   });
   it("checks the reading chair approach and other obstacles on it", () => {
     const reading = item({ id: "reading-chair", x: 180, z: 150, kind: "chair", rot: 270 });
@@ -136,6 +190,54 @@ describe("fit", () => {
   it("clips the circle to the swing quadrant", () => {
     expect(fit([item({ x: 180, z: 30 })]).doorSwing).toEqual([]);
     expect(fit([item({ x: 300, z: 75 })]).doorSwing).toEqual([]);
+  });
+  it("warns when pieces are tight to bring through the door", () => {
+    expect(doorTight({ w: 86.4, d: 86.4 }, 80)).toEqual({ smallestCm: 86, openingCm: 80 });
+    expect(doorTight({ w: 70, d: 90 }, 80)).toBeNull();
+    expect(doorTight(null, 80)).toBeNull();
+
+    const christopherKnight = item({
+      id: "reading-chair",
+      kind: "chair",
+      w: 86.4,
+      d: 86.4,
+      h: 80,
+      source: "slot",
+      dims: "verified",
+      x: 100,
+      z: 100,
+    });
+    const rug = item({
+      id: "rug",
+      kind: "rug",
+      w: 150,
+      d: 210,
+      h: 1,
+      source: "slot",
+      dims: "verified",
+      x: 190,
+      z: 150,
+    });
+    const standardChair = item({
+      id: "reading-chair",
+      kind: "chair",
+      w: 60,
+      d: 60,
+      h: 80,
+      source: "slot",
+      dims: "verified",
+      x: 100,
+      z: 100,
+    });
+
+    const tightResult = fit([christopherKnight, rug]);
+    expect(tightResult.tight).toEqual([{ id: "reading-chair", smallestCm: 86, openingCm: 80 }]);
+    expect(tightResult.tight?.map(t => t.id)).not.toContain("rug");
+
+    const standardResult = fit([standardChair, rug]);
+    expect(standardResult.tight).toEqual([]);
+    expect(tightResult.passes).toBe(standardResult.passes);
+    expect(tightResult.messages).toEqual(standardResult.messages);
   });
 });
 

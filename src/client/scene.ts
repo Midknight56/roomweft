@@ -10,6 +10,8 @@ import { theme } from './theme';
 import { roomDoor, doorArc, setDoorMode } from './door';
 import { FrameReadiness } from './return-state';
 import { planFrustum } from './plan-framing';
+import { floorOutline } from './floor-status';
+import { pathDots, walkwayStripSegments } from './walkway-strip';
 
 export type Mode = 'Overview' | 'Plan' | 'Walk';
 export class RoomScene {
@@ -68,6 +70,7 @@ export class RoomScene {
     this.shell.traverse(child => { if (child.userData.ceiling) child.visible = mode === 'Walk'; });
     setDoorMode(this.shell, mode);
     setTagMode(this.pieces, mode);
+    this.setWalkwayMode(mode);
   }
   resize(): void {
     const width = this.host.clientWidth; const height = this.host.clientHeight;
@@ -127,13 +130,51 @@ export class RoomScene {
     dispose(this.regions); this.regions.clear();
     this.regions.add(doorArc(fit.doorSwing.length ? theme.alarm : theme.amber, fit.doorSwing.length > 0));
     const cells = fit.walkway.pinch;
-    if (cells.length) { const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: theme.alarm, transparent: true, opacity: .45, side: THREE.DoubleSide }), cells.length); const dummy = new THREE.Object3D(); cells.forEach((cell, index) => { dummy.position.set(cell.x, 1.5, cell.z); dummy.rotation.x = -Math.PI / 2; dummy.updateMatrix(); mesh.setMatrixAt(index, dummy.matrix); }); this.regions.add(mesh); }
+    if (cells.length) { const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: theme.alarm, transparent: true, opacity: .45, side: THREE.DoubleSide }), cells.length); const dummy = new THREE.Object3D(); cells.forEach((cell, index) => { dummy.position.set(cell.x, 1.5, cell.z); dummy.rotation.x = -Math.PI / 2; dummy.updateMatrix(); mesh.setMatrixAt(index, dummy.matrix); }); mesh.renderOrder = 3; this.regions.add(mesh); }
+    for (const target of fit.walkway.targets ?? []) {
+      const path = target.path ?? [];
+      if (path.length >= 2) {
+        const dots = pathDots(path, 12);
+        if (dots.length > 0) {
+          const dotGeom = new THREE.CircleGeometry(3, 24);
+          const dotMat = new THREE.MeshBasicMaterial({ color: target.reachable ? theme.ink : theme.alarm, depthTest: false, side: THREE.DoubleSide });
+          const dotMesh = new THREE.InstancedMesh(dotGeom, dotMat, dots.length);
+          const dummy = new THREE.Object3D();
+          dots.forEach((dot, index) => {
+            dummy.position.set(dot.x, 2, dot.z);
+            dummy.rotation.x = -Math.PI / 2;
+            dummy.updateMatrix();
+            dotMesh.setMatrixAt(index, dummy.matrix);
+          });
+          dotMesh.instanceMatrix.needsUpdate = true;
+          dotMesh.renderOrder = 4;
+          dotMesh.userData.walkwayPlan = true;
+          this.regions.add(dotMesh);
+        }
+        const stripColor = target.reachable ? '#FFF4DC' : theme.alarm;
+        const stripOpacity = target.reachable ? 0.42 : 0.25;
+        for (const segment of walkwayStripSegments(path, 76)) {
+          const strip = new THREE.Mesh(new THREE.PlaneGeometry(segment.width, segment.depth),
+            new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: stripOpacity, depthWrite: false, side: THREE.DoubleSide }));
+          strip.rotation.x = -Math.PI / 2; strip.position.set(segment.x, 1.3, segment.z);
+          strip.renderOrder = 1; strip.userData.walkwayFloor = true;
+          this.regions.add(strip);
+        }
+      }
+    }
     for (const item of this.layout) {
       const badge = fitBadge(fit, item.id);
-      const turned = item.rot === 90 || item.rot === 270; const w = (turned ? item.d : item.w) / 2; const d = (turned ? item.w : item.d) / 2;
-      const points = [[-w, -d], [w, -d], [w, d], [-w, d], [-w, -d]].map(([x, z]) => new THREE.Vector3(item.x + x, 2.5, item.z + z));
-      this.regions.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: theme[badge.tone], transparent: true, opacity: badge.tone === 'moss' ? .35 : 1 })));
+      const returned = this.objects.get(item.id)?.userData.returned === true;
+      const colour = returned ? theme.thread : theme[badge.tone];
+      this.regions.add(floorOutline(item, colour, returned || badge.tone !== 'moss'));
     }
+    this.setWalkwayMode(this.mode);
+  }
+  private setWalkwayMode(mode: Mode): void {
+    this.regions.traverse(child => {
+      if (child.userData.walkwayPlan) child.visible = mode === 'Plan';
+      if (child.userData.walkwayFloor) child.visible = mode !== 'Plan';
+    });
   }
   highlight(id: string | null): void {
     this.selected = id;
