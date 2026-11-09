@@ -15,7 +15,7 @@ export interface DesignOptions {
   ledger: NeuronLedger; ai?: PickBinding; now?: () => number; id?: () => string;
 }
 export class DesignError extends Error {
-  constructor(public code: 'invalid' | 'not_found' | 'changed', message: string) { super(message); }
+  constructor(public code: 'invalid' | 'not_found' | 'changed' | 'paying', message: string) { super(message); }
 }
 const invalid = (message: string): never => { throw new DesignError('invalid',message); };
 export const modelOf = (design: Pick<DesignView, 'roomSpec'>): RoomModel => roomFromSpec(design.roomSpec ?? DEFAULT_ROOM_SPEC);
@@ -185,11 +185,17 @@ export class DesignService {
     if (!row) throw new DesignError('not_found','not found');
     return {...JSON.parse(row.body) as DesignView,roomSpec:JSON.parse(row.room_spec) as RoomSpec};
   }
-  private async save(design:DesignView,visitor:string,version:number):Promise<DesignView> {
+  /** Writes a new version. While a payment for this room is being ordered or captured, only the checkout's own price write may land. */
+  private async save(design:DesignView,visitor:string,version:number,checkoutWrite=false):Promise<DesignView> {
     design.version=version+1; refresh(design);
-    const result=await this.options.db.prepare('UPDATE designs SET version=?,body=?,room_spec=?,updated_at=? WHERE id=? AND visitor=? AND version=?')
-      .bind(design.version,JSON.stringify(design),JSON.stringify(design.roomSpec ?? DEFAULT_ROOM_SPEC),this.now(),design.id,visitor,version).run();
-    if (result.meta.changes!==1) throw new DesignError('changed','changed, reload');
+    const result=await this.options.db.prepare(`UPDATE designs SET version=?,body=?,room_spec=?,updated_at=? WHERE id=? AND visitor=? AND version=?
+      AND (? OR NOT EXISTS (SELECT 1 FROM quotes WHERE quotes.design_id=designs.id AND quotes.state IN ('ordering','capturing')))`)
+      .bind(design.version,JSON.stringify(design),JSON.stringify(design.roomSpec ?? DEFAULT_ROOM_SPEC),this.now(),design.id,visitor,version,checkoutWrite?1:0).run();
+    if (result.meta.changes!==1) {
+      const busy=await this.options.db.prepare("SELECT 1 AS busy FROM quotes WHERE design_id=? AND state IN ('ordering','capturing') LIMIT 1").bind(design.id).first();
+      if (busy && !checkoutWrite) throw new DesignError('paying','A payment for this room is in progress. Wait for PayPal to finish, then try again.');
+      throw new DesignError('changed','changed, reload');
+    }
     return design;
   }
   async applyPrices(designId:string,visitor:string,repriced:NonNullable<QuoteView['repriced']>,expectedVersion?:number):Promise<DesignView> {
@@ -206,7 +212,7 @@ export class DesignService {
         for (const alt of slot.alternates) if (alt.candidate.id===slot.pick.id) alt.candidate.priceCents=entry.newCents;
       }
     }
-    return this.save(design,visitor,version);
+    return this.save(design,visitor,version,true);
   }
   async swap(designId:string,visitor:string,slotId:SlotId,productId:string):Promise<DesignView> {
     const design=await this.get(designId,visitor), version=design.version;

@@ -235,6 +235,7 @@ export class CheckoutService {
       const result = await this.stale(row, "price_changed", "Prices changed at the shop. Freeze a new quote.", repriced);
       return { ...result, design: updated };
     }
+    if (!(await this.unchanged(row))) return this.stale(row, "design_changed", "Your room changed. Please make a new quote.");
     const result = await this.paypal.createOrder(this.orderBody(row), `rw-order-${quoteId}-${row.attempt}`);
     if (row.payment_method === "card") {
       await this.cardAnswer(row, result);
@@ -303,13 +304,13 @@ export class CheckoutService {
     if (!row) return notFound();
     if (row.state === "paid") return success(await this.buildReceipt(row));
     if (row.state === "capture_unknown") return this.reconcile(row.id);
+    const lock = await this.db.prepare("UPDATE quotes SET state = 'capturing', updated_at = ? WHERE id = ? AND state = 'approving'").bind(this.clock(), row.id).run();
+    if (!lock.meta.changes) return success(await this.buildReceipt((await this.row(row.id))!));
     if (!(await this.unchanged(row))) {
-      await this.db.prepare("UPDATE quotes SET state = 'superseded', error = ?, updated_at = ? WHERE id = ? AND state = 'approving'")
+      await this.db.prepare("UPDATE quotes SET state = 'superseded', error = ?, updated_at = ? WHERE id = ? AND state = 'capturing'")
         .bind("Your room changed. Please make a new quote.", this.clock(), row.id).run();
       return failure("design_changed", "Your room changed. Please make a new quote.", await this.current(row.id));
     }
-    const lock = await this.db.prepare("UPDATE quotes SET state = 'capturing', updated_at = ? WHERE id = ? AND state = 'approving'").bind(this.clock(), row.id).run();
-    if (!lock.meta.changes) return success(await this.buildReceipt((await this.row(row.id))!));
     return this.capture(row, true);
   }
 
@@ -369,14 +370,16 @@ export class CheckoutService {
       return success(await this.buildReceipt((await this.row(quoteId))!));
     }
     if (retryCapture && order.body.status === "APPROVED" && captures(order.body).length === 0) {
-      if (!(await this.unchanged(row))) {
-        await this.db.prepare("UPDATE quotes SET state = 'superseded', error = ?, updated_at = ? WHERE id = ? AND state IN ('approving','capture_unknown')")
-          .bind("Your room changed. Please make a new quote.", this.clock(), quoteId).run();
-        return failure("design_changed", "Your room changed. Please make a new quote.", await this.current(quoteId));
-      }
       const lock = await this.db.prepare("UPDATE quotes SET state = 'capturing', updated_at = ? WHERE id = ? AND state IN ('approving','capture_unknown')")
         .bind(this.clock(), quoteId).run();
-      if (lock.meta.changes) return this.capture(row, false);
+      if (lock.meta.changes) {
+        if (!(await this.unchanged(row))) {
+          await this.db.prepare("UPDATE quotes SET state = 'superseded', error = ?, updated_at = ? WHERE id = ? AND state = 'capturing'")
+            .bind("Your room changed. Please make a new quote.", this.clock(), quoteId).run();
+          return failure("design_changed", "Your room changed. Please make a new quote.", await this.current(quoteId));
+        }
+        return this.capture(row, false);
+      }
     }
     if (row.state !== "capturing") await this.markUnknown(quoteId);
     return failure("checking_payment", "PayPal is still checking this payment.", await this.current(quoteId));

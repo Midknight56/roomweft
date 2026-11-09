@@ -136,6 +136,8 @@ export class RoomScene {
   }
   showFit(fit: FitReport): void {
     dispose(this.regions); this.regions.clear();
+    // The pieces the current findings place outside the walls, read by the page check.
+    this.renderer.domElement.dataset.fitOutside = fit.inside.join(' ');
     this.regions.add(doorArc(fit.doorSwing.length ? theme.alarm : theme.amber, fit.doorSwing.length > 0));
     const cells = fit.walkway.pinch;
     if (cells.length) { const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ color: theme.alarm, transparent: true, opacity: .45, side: THREE.DoubleSide }), cells.length); const dummy = new THREE.Object3D(); cells.forEach((cell, index) => { dummy.position.set(cell.x, 1.5, cell.z); dummy.rotation.x = -Math.PI / 2; dummy.updateMatrix(); mesh.setMatrixAt(index, dummy.matrix); }); mesh.renderOrder = 3; this.regions.add(mesh); }

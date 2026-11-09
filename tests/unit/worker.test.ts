@@ -343,4 +343,16 @@ describe('worker room route', () => {
     expect(await measured.json()).toMatchObject({ roomSpec: { width: 450 } });
     expect((await call('/api/design', { ...input, roomSpec: { width: 9000 } })).status).toBe(400);
   });
+  it('answers 409 paying to a room change while a payment for the room is being ordered', async () => {
+    const { call, db, s } = fixture();
+    const { DEFAULT_ROOM_SPEC } = await import('../../src/shared/room');
+    const initial = await (await call('/api/design', input)).json() as DesignView;
+    const design = await s.designs.swap(initial.id, visitor, 'reading-chair', 'small');
+    const quote = await (await call('/api/quote', { designId: design.id, version: design.version })).json() as QuoteView;
+    expect(quote.state).toBe('open');
+    await asD1(db).prepare("UPDATE quotes SET state = 'ordering' WHERE id = ?").bind(quote.id).run();
+    const refused = await call('/api/room', { designId: design.id, roomSpec: { ...DEFAULT_ROOM_SPEC, width: 450 } });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ code: 'paying', error: 'A payment for this room is in progress. Wait for PayPal to finish, then try again.' });
+  });
 });

@@ -55,7 +55,9 @@ PayPal calls (sandbox only): `POST /v1/oauth2/token`, `POST /v2/checkout/orders`
 room object; `payment_source.card` for the test card, `payment_source.paypal` for the button), `POST /v2/checkout/orders/{id}/capture`, `GET /v2/checkout/orders/{id}`,
 `POST /v2/payments/captures/{id}/refund`, `GET /v2/payments/refunds/{id}`, `POST /v1/notifications/verify-webhook-signature`.
 Every payment and refund write carries a stable `PayPal-Request-Id`. The quote and the design version are frozen together: a changed room cannot
-be captured against an old quote. A price older than six hours is checked again with the shop before payment; if that check
+be paid against an old quote. While a payment is being ordered or captured, the server refuses any change to the room, and it
+checks the room version again right before it orders and right before it captures. A price older than six hours is looked up again through Channel3 before payment
+(that lookup may use a saved answer up to six hours old); if that check
 fails, no payment starts. A changed shop price is saved to the room so the next quote can pay. A refunded piece can be
 replaced with a new quote that holds only that piece, linked to the first receipt. A repeated request returns the same
 replacement quote, and the old refund marks only the old product as returned. Changing the room size raises the design

@@ -73,7 +73,7 @@ export function createWorker(makeServices: (env: Env) => Services = services, no
       try { response = await route(request, env, visitor.id, makeServices, now()); }
       catch (error) {
         if (error instanceof HttpError) response = errorResponse(error.status, error.code, error.message);
-        else if (error instanceof DesignError) response = errorResponse(error.code === 'not_found' ? 404 : error.code === 'changed' ? 409 : 400, error.code,
+        else if (error instanceof DesignError) response = errorResponse(error.code === 'not_found' ? 404 : error.code === 'changed' || error.code === 'paying' ? 409 : 400, error.code,
           error.code === 'not_found' ? 'This room was not found.' : error.code === 'changed' ? 'Your room changed. Please reload it.' : error.message);
         else response = errorResponse(500, 'unavailable', 'This request could not be completed. Please try again.');
       }

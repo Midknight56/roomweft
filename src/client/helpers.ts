@@ -1,6 +1,6 @@
 import type { Candidate, DesignView, SlotView, QuoteView, ReceiptView, RefundState } from '../shared/api-types';
 import type { Footprint, FitReport, Point, Rotation } from '../shared/fit';
-import { footprintBounds } from '../shared/fit';
+import { evaluateDesignFit, footprintBounds } from '../shared/fit';
 import { DEFAULT_ROOM_SPEC, NOMINAL_DIMS, OWNED_ITEMS, SLOTS, roomFromSpec, type RoomSpec } from '../shared/room';
 import { roomModel } from './room-model';
 
@@ -29,6 +29,18 @@ export function layoutOf(design: DesignView): Footprint[] {
     return [{ id: slot.slot, label: slot.pick.title, kind: slot.slot, ...slot.placement, ...dims, ...(!slot.pick.dims ? {nominal:true as const} : {}), locked: false, movable: true, source: 'slot' as const, dims: slot.pick.dims ? 'verified' as const : 'unverified' as const }];
   });
   return [...owned, ...slots];
+}
+/** The findings the drag preview shows for a layout of this design. */
+export function previewFit(layout: readonly Footprint[], design: DesignView): FitReport {
+  const { room, door, window } = roomFromSpec(design.roomSpec ?? DEFAULT_ROOM_SPEC);
+  // The saved check names a piece by its spot (Reading chair), not by the product title.
+  const named = layout.map(item => item.source === 'slot' ? { ...item, label: SLOTS.find(slot => slot.id === item.id)?.label ?? item.label } : item);
+  return evaluateDesignFit(named, {
+    room, door, window,
+    prices: Object.fromEntries(design.slots.map(slot => [slot.slot, slot.pick?.priceCents ?? 0])),
+    budget: design.budgetCents,
+    unavailable: design.slots.filter(slot => slot.unavailable).map(slot => slot.slot),
+  });
 }
 export function collides(point: Point, layout: readonly Footprint[], radius = 25): boolean {
   if (point.x < radius || point.z < radius || point.x > roomModel().room.width - radius || point.z > roomModel().room.depth - radius) return true;

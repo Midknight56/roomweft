@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { evaluateDesignFit, footprintBounds, moveItem } from '../shared/fit';
+import { footprintBounds, moveItem } from '../shared/fit';
 import type { Placement } from '../shared/api-types';
 import { roomModel } from './room-model';
-import { collides, isDesktopWidth, layoutOf, rotate, snap } from './helpers';
+import { collides, isDesktopWidth, layoutOf, previewFit, rotate, snap } from './helpers';
 import type { RoomScene, Mode } from './scene';
 import { walkStart } from './walk-start';
 
@@ -97,11 +97,7 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
   function preview(): void {
     for (const item of view.layout) { const object = view.objects.get(item.id); if (object) { object.position.set(item.x, 0, item.z); object.rotation.y = item.rot * Math.PI / 180; } }
     if (view.design) {
-      view.showFit(evaluateDesignFit(view.layout, {
-        prices: Object.fromEntries(view.design.slots.map(slot => [slot.slot, slot.pick?.priceCents ?? 0])),
-        budget: view.design.budgetCents,
-        unavailable: view.design.slots.filter(slot => slot.unavailable).map(slot => slot.slot),
-      }));
+      view.showFit(previewFit(view.layout, view.design));
     }
   }
   async function drop(): Promise<void> {

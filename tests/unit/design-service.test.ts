@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DesignService, designLayout, type DesignInput } from '../../src/design/service';
 import { CheckoutService } from '../../src/checkout/service';
-import { harness, orderStep, unwrap } from './checkout-helper';
+import { completed, harness, orderStep, unwrap } from './checkout-helper';
 import { NeuronLedger } from '../../src/ai/ledger';
 import { validatePicks, type PickBinding } from '../../src/ai/pick';
 import { OWNED_ITEMS, SLOTS, STYLES, placeAtAnchor } from '../../src/shared/room';
@@ -11,7 +11,7 @@ import { recordedPicks, recordedRuns } from '../../src/design/recorded';
 import { asD1, freshD1, LEDGER_SQL } from './d1-fake';
 import { makeRecordedData } from './recorded-fixture';
 import { evaluateDesignFit } from '../../src/shared/fit';
-import { layoutOf } from '../../src/client/helpers';
+import { layoutOf, previewFit } from '../../src/client/helpers';
 vi.mock('../../src/design/recorded',async()=>{
   const {makeRecordedData}=await import('./recorded-fixture');
   return makeRecordedData();
@@ -500,6 +500,65 @@ describe('measured rooms in the design service',()=>{
     const quote=unwrap(await checkout.freezeQuote(design.id,design.version,'visitor'));
     await service.setRoom(design.id,'visitor',{...await spec(),width:450,depth:360});
     expect(await checkout.startCheckout(quote.id,'visitor')).toMatchObject({ok:false,code:'design_changed'});
+  });
+  const same=(saved: DesignView)=>{
+    const shown=previewFit(layoutOf(saved),saved);
+    expect({passes:shown.passes,inside:shown.inside,overlaps:shown.overlaps,doorSwing:shown.doorSwing,messages:shown.messages,unverified:shown.unverified})
+      .toEqual({passes:saved.fit.passes,inside:saved.fit.inside,overlaps:saved.fit.overlaps,doorSwing:saved.fit.doorSwing,messages:saved.fit.messages,unverified:saved.fit.unverified});
+  };
+  it('the drag preview gives the saved findings in a 450 by 360 room, before and after a move',async()=>{
+    const {service,input}=fixture({ai:true});
+    const design=await service.createDesign(input);
+    const big=await service.setRoom(design.id,'visitor',{...await spec(),width:450,depth:360});
+    expect(big.fit.inside).toEqual([]);
+    same(big);
+    const chair=big.slots.find(slot=>slot.slot==='reading-chair')!.placement!;
+    const moved=await service.move(big.id,'visitor','reading-chair',chair.x-20,chair.z,chair.rot);
+    expect(moved.version).toBe(big.version+1);
+    same(moved);
+  });
+  it('the drag preview gives the saved findings in a 300 by 280 room with the door near the corner',async()=>{
+    const {service,input}=fixture({ai:true});
+    const design=await service.createDesign(input);
+    const small=await service.setRoom(design.id,'visitor',{...await spec(),width:300,depth:280,door:{left:200,width:80}});
+    expect(small.fit.doorSwing).toContain('reading-chair');
+    same(small);
+    const swapped=await service.swap(small.id,'visitor','reading-chair','small');
+    same(swapped);
+  });
+  const paying=async()=>{
+    const {service,input,db}=fixture({ai:true});
+    let design=await service.createDesign(input);
+    design=await service.swap(design.id,'visitor','reading-chair','small');
+    const h=harness();
+    const checkout=new CheckoutService({...h.options,db:asD1(db),designs:service});
+    const quote=unwrap(await checkout.freezeQuote(design.id,design.version,'visitor'));
+    return {service,db,design,checkout,quote,h};
+  };
+  it('a room change while the shop prices are checked during checkout is refused, and the payment matches the room',async()=>{
+    const {service,design,checkout,quote,h}=await paying();
+    h.network.steps.push({path:'/v2/checkout/orders',status:201,body:completed((quote.totalCents/100).toFixed(2))});
+    let during: unknown;
+    const paid=await checkout.startCheckout(quote.id,'visitor',{method:'card',recheck:async lines=>{
+      during=await service.setRoom(design.id,'visitor',{...await spec(),width:450,depth:360}).catch(error=>error);
+      return lines.map(line=>({lineId:line.lineId,priceCents:line.priceCents}));
+    }});
+    expect(during).toMatchObject({code:'paying'});
+    const now=await service.get(design.id,'visitor');
+    expect(now.version).toBe(design.version);
+    expect(now.roomSpec ?? null).toEqual(design.roomSpec ?? null);
+    expect(unwrap(paid)).toMatchObject({state:'paid',designVersion:now.version});
+  });
+  it('a move or swap while a payment is ordering or capturing is refused; after it ends the room can change again',async()=>{
+    const {service,db,design,quote}=await paying();
+    for (const state of ['ordering','capturing']) {
+      await asD1(db).prepare('UPDATE quotes SET state=? WHERE id=?').bind(state,quote.id).run();
+      await expect(service.move(design.id,'visitor','reading-chair',200,60,0)).rejects.toMatchObject({code:'paying'});
+      await expect(service.swap(design.id,'visitor','reading-chair','large')).rejects.toMatchObject({code:'paying'});
+      expect((await service.get(design.id,'visitor')).version).toBe(design.version);
+    }
+    await asD1(db).prepare("UPDATE quotes SET state='approving' WHERE id=?").bind(quote.id).run();
+    expect((await service.move(design.id,'visitor','reading-chair',200,60,0)).version).toBe(design.version+1);
   });
   it('refuses a bad room with its first error and keeps the design; a new design keeps a measured room',async()=>{
     const {service,input}=fixture({ai:true});

@@ -322,5 +322,22 @@ try {
     await page.screenshot({ path: `out/page-check/room-size-${viewport.width}.png` });
     await page.getByTestId('room-size').screenshot({ path: `out/page-check/room-size-box-${viewport.width}.png` });
   }
-  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['room size applies 300 by 280, refuses a bad width and redraws the plan at 1440 and 390', 'summary visible and fix button focus at 1440 and 390', 'saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
+  {
+    // The drag preview must judge the measured room, not the sample room.
+    await page.setViewportSize({ width: 1440, height: 900 }); design = makeDesign(true);
+    await page.goto('http://room.test/'); await page.waitForFunction(() => window.__roomweftReady === true);
+    await page.getByRole('button', { name: 'Plan view', exact: true }).click(); await page.waitForTimeout(400);
+    await page.getByTestId('room-width').fill('450'); await page.getByTestId('room-depth').fill('360');
+    const answer = page.waitForResponse(response => new URL(response.url()).pathname === '/api/room');
+    await page.getByTestId('room-apply').click(); await answer;
+    await page.waitForFunction(() => window.__roomweftReady === true); await page.waitForTimeout(500);
+    const chair = design.slots[0].placement;
+    const at = async (x, z) => { const rect = await page.getByTestId('plan-floor').boundingBox(); return { x: rect.x + x / 450 * rect.width, y: rect.y + (1 - z / 360) * rect.height }; };
+    const from = await at(chair.x, chair.z); const to = await at(chair.x - 10, chair.z);
+    await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 5 }); await page.waitForTimeout(150);
+    const outside = await page.locator('canvas').first().getAttribute('data-fit-outside');
+    await page.mouse.up(); await page.waitForTimeout(200);
+    assert.equal(outside, '', `drag preview in a 450 by 360 room puts nothing outside the walls, got "${outside}"`);
+  }
+  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['drag preview judges the measured 450 by 360 room', 'room size applies 300 by 280, refuses a bad width and redraws the plan at 1440 and 390', 'summary visible and fix button focus at 1440 and 390', 'saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
 } finally { await browser.close(); }
