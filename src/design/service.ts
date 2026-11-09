@@ -1,6 +1,6 @@
 import type { Candidate, DesignView, OwnedState, Placement, QuoteView, SlotView } from '../shared/api-types';
 import { checkFit, doorTight, evaluateDesignFit, footprintBounds, moveItem, type Footprint, type Rotation } from '../shared/fit';
-import { DOOR, NOMINAL_DIMS, OWNED_ITEMS, ROOM, SLOTS, STYLES, WINDOW, slotCapCents, placeAtAnchor, type SlotId } from '../shared/room';
+import { DEFAULT_ROOM_SPEC, NOMINAL_DIMS, SLOTS, STYLES, cleanRoomSpec, roomFromSpec, slotCapCents, placeAtAnchor, validateRoomSpec, type Door, type RoomModel, type RoomSpec, type SlotId } from '../shared/room';
 import { takeCounter, withSlotDims, type SearchResult } from '../products/channel3';
 import { pick, validatePicks, type CandidateLists, type PickBinding } from '../ai/pick';
 import type { NeuronLedger } from '../ai/ledger';
@@ -9,7 +9,7 @@ import { recordedPicks, recordedRuns } from './recorded';
 import { rulesPick, rulesReason } from './rules';
 import { object } from '../products/channel3';
 
-export interface DesignInput { brief?: string; style: string; budget: number; owned: OwnedState[]; live: boolean; visitorId: string }
+export interface DesignInput { brief?: string; style: string; budget: number; owned: OwnedState[]; live: boolean; visitorId: string; roomSpec?: unknown }
 export interface DesignOptions {
   db: D1Database; search: {search(query:string,maxPrice:number):Promise<SearchResult>};
   ledger: NeuronLedger; ai?: PickBinding; now?: () => number; id?: () => string;
@@ -18,9 +18,10 @@ export class DesignError extends Error {
   constructor(public code: 'invalid' | 'not_found' | 'changed', message: string) { super(message); }
 }
 const invalid = (message: string): never => { throw new DesignError('invalid',message); };
-function ownedLayout(states: OwnedState[]): Footprint[] {
+export const modelOf = (design: Pick<DesignView, 'roomSpec'>): RoomModel => roomFromSpec(design.roomSpec ?? DEFAULT_ROOM_SPEC);
+function ownedLayout(states: OwnedState[], model: RoomModel): Footprint[] {
   return states.map(state => {
-    const item = OWNED_ITEMS.find(i => i.id === state.id)!;
+    const item = model.ownedItems.find(i => i.id === state.id)!;
     return {...item,...state,source:'owned',dims:'verified'};
   });
 }
@@ -31,11 +32,13 @@ function slotFootprint(slot: SlotView): Footprint | null {
     ...dims,...slot.placement,locked:false,movable:true,source:'slot',dims:slot.pick.dims ? 'verified' : 'unverified'};
 }
 export function designLayout(design: DesignView): Footprint[] {
-  return [...ownedLayout(design.owned),...design.slots.map(slotFootprint).filter((p):p is Footprint=>p!==null)];
+  return [...ownedLayout(design.owned,modelOf(design)),...design.slots.map(slotFootprint).filter((p):p is Footprint=>p!==null)];
 }
 function fitDesign(design: DesignView): DesignView['fit'] {
   const layout = designLayout(design);
+  const model = modelOf(design);
   return evaluateDesignFit(layout, {
+    room: model.room, door: model.door, window: model.window,
     prices: Object.fromEntries(design.slots.map(s => [s.slot, s.pick?.priceCents ?? 0])),
     budget: design.budgetCents,
     unavailable: design.slots.filter(slot => slot.unavailable).map(slot => slot.slot),
@@ -43,12 +46,13 @@ function fitDesign(design: DesignView): DesignView['fit'] {
 }
 function placementFor(design: DesignView, slot: SlotView, candidate: Candidate): Placement {
   const placed = designLayout(design).filter(p=>p.id!==slot.slot);
+  const slots = modelOf(design).slots;
   // Side tables require a chair anchor even when its search found nothing.
   if (slot.slot==='side-table' && !placed.some(p=>p.id==='reading-chair')) {
     placed.push({id:'reading-chair',label:'Reading chair',kind:'chair',...NOMINAL_DIMS['reading-chair'],
-      ...placeAtAnchor(SLOTS[0],NOMINAL_DIMS['reading-chair'],placed),locked:false,source:'slot',dims:'unverified',nominal:true});
+      ...placeAtAnchor(slots[0],NOMINAL_DIMS['reading-chair'],placed),locked:false,source:'slot',dims:'unverified',nominal:true});
   }
-  return {...placeAtAnchor(SLOTS.find(s=>s.id===slot.slot)!,candidate.dims ?? NOMINAL_DIMS[slot.slot],placed),
+  return {...placeAtAnchor(slots.find(s=>s.id===slot.slot)!,candidate.dims ?? NOMINAL_DIMS[slot.slot],placed),
     ...(!candidate.dims ? {nominal:true as const} : {})};
 }
 function placeCandidate(design: DesignView, slot: SlotView, candidate: Candidate): void {
@@ -99,16 +103,23 @@ export class DesignService {
     if (input.brief !== undefined && typeof input.brief !== 'string') return invalid('Use words for the room brief.');
     if (!Number.isInteger(input.budget) || input.budget<150 || input.budget>3000) return invalid('Use a whole dollar budget from 150 to 3000.');
     if (typeof input.live!=='boolean' || typeof input.visitorId!=='string' || !input.visitorId.trim()) return invalid('Use a valid visitor and search choice.');
-    if (!Array.isArray(input.owned) || input.owned.length!==OWNED_ITEMS.length || input.owned.some(i=>!i || typeof i!=='object')
-      || new Set(input.owned.map(i=>i.id)).size!==OWNED_ITEMS.length) return invalid('Include each owned item once.');
+    let roomSpec: RoomSpec = DEFAULT_ROOM_SPEC;
+    if (input.roomSpec !== undefined) {
+      const errors = validateRoomSpec(input.roomSpec);
+      if (errors.length) return invalid(errors[0].message);
+      roomSpec = cleanRoomSpec(input.roomSpec as RoomSpec);
+    }
+    const model = roomFromSpec(roomSpec);
+    if (!Array.isArray(input.owned) || input.owned.length!==model.ownedItems.length || input.owned.some(i=>!i || typeof i!=='object')
+      || new Set(input.owned.map(i=>i.id)).size!==model.ownedItems.length) return invalid('Include each owned item once.');
     for (const state of input.owned) {
-      const def=OWNED_ITEMS.find(i=>i.id===state.id);
+      const def=model.ownedItems.find(i=>i.id===state.id);
       if (!def || ![state.x,state.z].every(Number.isFinite) || ![0,90,180,270].includes(state.rot) || typeof state.locked!=='boolean') return invalid('Use valid owned items and positions.');
       if (state.locked && (state.x!==def.x || state.z!==def.z || state.rot!==def.rot)) return invalid('Keep locked items at their default place.');
     }
     const desk=input.owned.find(i=>i.id==='desk')!, chair=input.owned.find(i=>i.id==='desk-chair')!;
     if (desk.locked!==chair.locked) return invalid('The desk and desk chair share one lock.');
-    if (checkFit(ownedLayout(input.owned),ROOM,DOOR,WINDOW).inside.length) return invalid('Keep owned items inside the room.');
+    if (checkFit(ownedLayout(input.owned,model),model.room,model.door,model.window).inside.length) return invalid('Keep owned items inside the room.');
     let live=false;
     if (input.live) { try { live=await takeCounter(this.options.db,`design:${input.visitorId}`,3,this.now()); } catch { /* Recorded fallback. */ } }
     let budget = input.budget;
@@ -159,25 +170,25 @@ export class DesignService {
     }
     const design: DesignView={id:(this.options.id ?? (()=>crypto.randomUUID()))(),version:1,mode:!hasLive?'recorded':response?.ok && response.picks.some(p=>p.by==='ai')?'live':'rules',
       brief,style:style.id,budgetCents:budget*100,owned:input.owned.map(i=>({...i})),slots,
-      fit:checkFit([],ROOM,DOOR,WINDOW),totals:{totalCents:0,budgetCents:budget*100,overCents:0,unverifiedCount:0},
+      fit:checkFit([],model.room,model.door,model.window),totals:{totalCents:0,budgetCents:budget*100,overCents:0,unverifiedCount:0},
       labels:{search:!hasLive?'recorded':slots.filter(s=>s.source?.origin==='live').every(s=>s.source?.cached)?'cached':'live',ai:!hasLive && savedPicks.some(p=>p.by==='ai')?'recorded':response?.ok && response.picks.some(p=>p.by==='ai')?'live':'rules'},
-      ...(!hasLive?{capturedAt:recorded.capturedAt}:{})};
+      ...(!hasLive?{capturedAt:recorded.capturedAt}:{}),roomSpec};
     for (const slot of slots) if (slot.pick) slot.placement=placementFor(design,slot,slot.pick);
     refresh(design);
     const now=this.now();
-    await this.options.db.prepare('INSERT INTO designs (id,visitor,version,body,created_at,updated_at) VALUES (?,?,?,?,?,?)')
-      .bind(design.id,input.visitorId,1,JSON.stringify(design),now,now).run();
+    await this.options.db.prepare('INSERT INTO designs (id,visitor,version,body,created_at,updated_at,room_spec) VALUES (?,?,?,?,?,?,?)')
+      .bind(design.id,input.visitorId,1,JSON.stringify(design),now,now,JSON.stringify(roomSpec)).run();
     return design;
   }
   async get(designId:string,visitor:string):Promise<DesignView> {
-    const row=await this.options.db.prepare('SELECT body FROM designs WHERE id=? AND visitor=?').bind(designId,visitor).first<{body:string}>();
+    const row=await this.options.db.prepare('SELECT body,room_spec FROM designs WHERE id=? AND visitor=?').bind(designId,visitor).first<{body:string;room_spec:string}>();
     if (!row) throw new DesignError('not_found','not found');
-    return JSON.parse(row.body) as DesignView;
+    return {...JSON.parse(row.body) as DesignView,roomSpec:JSON.parse(row.room_spec) as RoomSpec};
   }
   private async save(design:DesignView,visitor:string,version:number):Promise<DesignView> {
     design.version=version+1; refresh(design);
-    const result=await this.options.db.prepare('UPDATE designs SET version=?,body=?,updated_at=? WHERE id=? AND visitor=? AND version=?')
-      .bind(design.version,JSON.stringify(design),this.now(),design.id,visitor,version).run();
+    const result=await this.options.db.prepare('UPDATE designs SET version=?,body=?,room_spec=?,updated_at=? WHERE id=? AND visitor=? AND version=?')
+      .bind(design.version,JSON.stringify(design),JSON.stringify(design.roomSpec ?? DEFAULT_ROOM_SPEC),this.now(),design.id,visitor,version).run();
     if (result.meta.changes!==1) throw new DesignError('changed','changed, reload');
     return design;
   }
@@ -207,7 +218,8 @@ export class DesignService {
     const difference=candidate.priceCents-(slot.pick?.priceCents ?? 0);
     if (slot.unavailable) delete slot.unavailable;
     delete slot.note;
-    const openingCm = DOOR.opening.maxX - DOOR.opening.minX;
+    const door = modelOf(design).door;
+    const openingCm = door.opening.maxX - door.opening.minX;
     const wasTight = slotId !== 'rug' && Boolean(doorTight(slot.pick?.dims, openingCm));
     placeCandidate(design,slot,candidate); slot.by='rules';
     slot.alternates=candidates.filter(c=>c.id!==productId).map(c=>({candidate:c,verified:c.dims!==null,fit:{passes:false,messages:[]},priceDeltaCents:0}));
@@ -215,12 +227,45 @@ export class DesignService {
     const width=candidate.dims ? `${candidate.dims.w} cm wide` : 'size unverified';
     const box=slotFootprint(slot);
     const bounds=box ? footprintBounds(box) : null;
-    const clearance=bounds && candidate.dims ? doorClearance(bounds) : null;
+    const clearance=bounds && candidate.dims ? doorClearance(bounds,door) : null;
     const blocksDoor=fitDesign(design).doorSwing.includes(slotId);
     const doorText=slotId==='rug' ? '' : clearance===null ? '' : blocksDoor ? ', blocks the door swing' : `, clears the door swing by ${Math.floor(clearance)} cm`;
     const tightText=wasTight && candidate.dims && !isTight ? `, fits through the ${openingCm} cm door` : '';
     design.swapNote=`Swapped for ${candidate.title}: ${width}${doorText}${tightText}, ${difference<=0?'saves':'adds'} $${(Math.abs(difference)/100).toFixed(2)}.`;
     slot.reason=design.swapNote;
+    return this.save(design,visitor,version);
+  }
+  /**
+   * For a refunded piece: keeps the current pick when it is already another piece that passes, else swaps in the first
+   * alternate that "Swap for one that fits" would choose (sized, passes the checks, under the slot's share). Null if none.
+   */
+  async replace(designId:string,visitor:string,slotId:SlotId,excludeProductId:string):Promise<DesignView|null> {
+    const design=await this.get(designId,visitor);
+    const slot=design.slots.find(s=>s.slot===slotId);
+    if (!slot) return invalid('Choose a known slot.');
+    if (slot.pick && slot.pick.id!==excludeProductId && !slot.unavailable && slot.pick.dims && design.fit.passes) return design;
+    const cap=slotCapCents(design.budgetCents,slotId);
+    const best=slot.alternates.find(a=>a.candidate.id!==excludeProductId && a.verified && a.fit.passes && a.candidate.priceCents<=cap);
+    return best ? this.swap(designId,visitor,slotId,best.candidate.id) : null;
+  }
+  /**
+   * Changes the measured room. Owned pieces go back to their wall places in the new room (locks kept), every picked piece
+   * is placed again at its anchor, the fit is checked again and the version rises, so a quote for the old room is stale.
+   * No model call is made.
+   */
+  async setRoom(designId:string,visitor:string,spec:unknown):Promise<DesignView> {
+    const errors=validateRoomSpec(spec);
+    if (errors.length) return invalid(errors[0].message);
+    const design=await this.get(designId,visitor), version=design.version;
+    design.roomSpec=cleanRoomSpec(spec as RoomSpec);
+    const model=modelOf(design);
+    design.owned=model.ownedItems.map(item=>{
+      const before=design.owned.find(state=>state.id===item.id);
+      return {id:item.id,x:item.x,z:item.z,rot:item.rot,locked:before?.locked ?? item.locked};
+    });
+    for (const slot of design.slots) slot.placement=null;
+    for (const slot of design.slots) if (slot.pick) slot.placement=placementFor(design,slot,slot.pick);
+    delete design.swapNote;
     return this.save(design,visitor,version);
   }
   async move(designId:string,visitor:string,itemId:string,x:number,z:number,rot:Rotation):Promise<DesignView> {
@@ -244,11 +289,11 @@ export class DesignService {
   }
 }
 function position(item:Footprint):Placement { return {x:item.x,z:item.z,rot:item.rot}; }
-function doorClearance(bounds: ReturnType<typeof footprintBounds>):number {
-  const x=bounds.minX-DOOR.hinge.x, z=bounds.minZ-DOOR.hinge.z;
-  const farX=bounds.maxX-DOOR.hinge.x, farZ=bounds.maxZ-DOOR.hinge.z;
+function doorClearance(bounds: ReturnType<typeof footprintBounds>, door: Door):number {
+  const x=bounds.minX-door.hinge.x, z=bounds.minZ-door.hinge.z;
+  const farX=bounds.maxX-door.hinge.x, farZ=bounds.maxZ-door.hinge.z;
   if (farX<0 && farZ<0) return Math.hypot(farX,farZ);
-  if (farX<0) return Math.hypot(farX,Math.max(0,z-DOOR.radius));
-  if (farZ<0) return Math.hypot(Math.max(0,x-DOOR.radius),farZ);
-  return Math.max(0,Math.hypot(Math.max(0,x),Math.max(0,z))-DOOR.radius);
+  if (farX<0) return Math.hypot(farX,Math.max(0,z-door.radius));
+  if (farZ<0) return Math.hypot(Math.max(0,x-door.radius),farZ);
+  return Math.max(0,Math.hypot(Math.max(0,x),Math.max(0,z))-door.radius);
 }

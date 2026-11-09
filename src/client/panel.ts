@@ -1,7 +1,7 @@
 import type { State } from './state';
 import type { Candidate, DesignView, SlotView } from '../shared/api-types';
 import type { SlotId } from '../shared/room';
-import { STYLES, OWNED_ITEMS, SLOTS, slotCapCents } from '../shared/room';
+import { DEFAULT_ROOM_SPEC, STYLES, OWNED_ITEMS, SLOTS, slotCapCents, type RoomSpec } from '../shared/room';
 import { budgetText, checkoutAllowed, doorTightWarning, eventTimeText, failedChecks, fitBadge, money, paymentLocked, paypalEventName, quoteChanged, receiptStateText, refundText, slotLabel, unverifiedItemsText } from './helpers';
 import { swatches } from './theme';
 import { missingSizeText } from './helpers';
@@ -9,7 +9,7 @@ import { missingSizeText } from './helpers';
 export interface Actions {
   brief: (text: string) => void; retry: () => void; style: (id: string) => void; budget: (cents: number) => void; lock: (id: string) => void;
   design: (live: boolean) => void; swap: (slot: SlotId, id: string) => void; quote: () => void; checkout: (method?: 'paypal' | 'card') => void;
-  refund: (id: SlotId) => void; refreshReceipt: () => void;
+  refund: (id: SlotId) => void; refreshReceipt: () => void; roomField: (field: string, value: string) => void; roomApply: () => void; replace: (id: SlotId, quoteId?: string) => void; openReceipt: (quoteId: string) => void;
   select?: (id: string) => void;
 }
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', className = ''): HTMLElementTagNameMap[K] {
@@ -122,7 +122,7 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
   OWNED_ITEMS.forEach((item, index) => {
     const owned = state.owned.find(entry => entry.id === item.id); const row = objectLine(item.id, index); row.append(el('strong', item.label), el('small', owned?.locked ? 'Locked in place' : 'Movable'));
     const lock = button(owned?.locked ? 'Unlock' : 'Lock', () => actions.lock(item.id), state.busy || paymentLocked(state.quote)); lock.dataset.testid = `lock-${item.id}`; lock.setAttribute('aria-label', `${owned?.locked ? 'Unlock' : 'Lock'} ${item.label}`); lock.setAttribute('aria-pressed', String(owned?.locked ?? false)); row.append(lock); room.append(row);
-  }); fragment.append(room);
+  }); room.append(roomSize(state, actions)); fragment.append(room);
   const style = section(2, 'Style and budget'); const choices = el('div', '', 'styles');
   STYLES.forEach(option => {
     const card = button('', () => actions.style(option.id), state.busy || paymentLocked(state.quote)); card.className = 'style-card'; card.dataset.testid = `style-${option.id}`; card.setAttribute('aria-pressed', String(state.style === option.id));
@@ -183,11 +183,21 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     else if (quote?.state === 'paid') basket.append(el('p', 'Paid with sandbox test money.', 'moss'), button('Freeze a new quote', actions.quote, state.busy || blocked, 'freeze-quote'));
     else if (quote?.state === 'ordering') basket.append(el('p', 'Preparing your sandbox payment.', 'amber'), button('Check payment status', actions.refreshReceipt, state.busy));
     else {
-      if (changed) basket.append(el('p', quote?.repriced?.length ? 'Prices changed at the shop. Freeze a new quote.' : 'This quote is stale or the design changed. Freeze a new quote before paying.', 'amber'));
+      const again = quote?.replaces && changed ? quote.replaces : null;
+      if (changed) basket.append(el('p', again ? (quote?.repriced?.length ? 'Prices changed at the shop. Make a new replacement quote.' : 'The room changed. Make a new replacement quote.')
+        : quote?.repriced?.length ? 'Prices changed at the shop. Freeze a new quote.' : 'This quote is stale or the design changed. Freeze a new quote before paying.', 'amber'));
       if (quote?.error) basket.append(el('p', quote.error, 'alarm'));
       quote?.repriced?.forEach(line => basket.append(el('p', `${slotLabel(line.lineId)}: ${money(line.oldCents)} → ${line.newCents === null ? 'Unavailable' : money(line.newCents)}`, 'amber')));
-      basket.append(button(quote ? 'Freeze a new quote' : 'Freeze quote', actions.quote, state.busy || blocked || paymentLocked(quote), 'freeze-quote'));
+      if (again) basket.append(button('New replacement quote', () => actions.replace(again.lineId, again.quoteId), state.busy || paymentLocked(quote), 'replace-again'));
+      else basket.append(button(quote ? 'Freeze a new quote' : 'Freeze quote', actions.quote, state.busy || blocked || paymentLocked(quote), 'freeze-quote'));
       const payDisabled = state.busy || blocked || !quote || changed || !checkoutAllowed(quote, design) || !state.status?.sandbox.live;
+      if (quote?.replaces && !changed) {
+        const replacement = el('div', '', 'replacement-quote'); replacement.dataset.testid = 'replacement-quote';
+        replacement.append(el('p', 'Replacement quote: 1 piece', 'moss'));
+        quote.lines.forEach(line => replacement.append(el('p', `${line.title} ${money(line.priceCents)}`)));
+        replacement.append(el('small', 'Only this piece is charged. The pieces you kept are not charged again.'));
+        basket.append(replacement);
+      }
       if (quote && !changed) basket.append(el('p', `Frozen total ${money(quote.totalCents)}`));
       const payments = el('div', '', 'buttons');
       payments.append(button('Pay with the test card', () => actions.checkout('card'), payDisabled, 'pay-card'), button('Pay with PayPal (sandbox)', () => actions.checkout('paypal'), payDisabled, 'pay'));
@@ -200,13 +210,25 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     receipt.append(el('p', `Order ${sale.orderId ?? 'Not yet available'}`), el('p', `Capture ${sale.captureId ?? 'Not yet available'}`));
     const receiptState = el('p', receiptStateText(sale.quote.state, sale.recorded), 'moss'); receiptState.dataset.testid = 'receipt-state'; receipt.append(receiptState);
     if (sale.amountMismatch) receipt.append(el('p', 'The payment amount needs review. Please check payment status.', 'alarm'));
+    if (sale.quote.replaces) {
+      const link = el('div', '', 'replacement-receipt'); link.dataset.testid = 'replacement-receipt';
+      const first = sale.quote.replaces.quoteId;
+      link.append(el('p', `Replacement for the ${slotLabel(sale.quote.replaces.lineId).toLowerCase()} returned on receipt ${first.slice(0, 8)}`), button('Open that receipt', () => actions.openReceipt(first), state.busy, 'open-first-receipt'));
+      receipt.append(link);
+    }
     sale.lines.forEach((line, index) => {
       const row = objectLine(line.roomObjectId, index); row.classList.add('receipt-line'); row.append(el('span', line.title), el('strong', money(line.priceCents)));
       if (line.refund) row.append(el('small', refundText(line.refund.state), line.refund.state === 'completed' ? 'moss' : line.refund.state === 'failed' ? 'alarm' : 'amber'));
       if (sale.plan.some(item => item.roomObjectId === line.roomObjectId && item.status === 'returned')) row.append(el('small', 'Returned', 'moss'));
-      row.append(button('Refund this item', () => actions.refund(line.lineId), state.busy || sale.recorded === true || !sale.captureId || !!line.refund || sale.quote.state !== 'paid', `refund-${line.lineId}`)); receipt.append(row);
+      row.append(button('Refund this item', () => actions.refund(line.lineId), state.busy || sale.recorded === true || !sale.captureId || !!line.refund || sale.quote.state !== 'paid', `refund-${line.lineId}`));
+      if (line.refund?.state === 'completed' && !sale.recorded) {
+        const done = sale.replacements?.find(item => item.lineId === line.lineId && item.state === 'paid');
+        if (done) row.append(el('small', 'Replaced', 'moss'), button('Open the replacement receipt', () => actions.openReceipt(done.quoteId), state.busy));
+        else row.append(button('Replace this item', () => actions.replace(line.lineId), state.busy || paymentLocked(state.quote), 'replace-item'));
+      }
+      receipt.append(row);
     });
-    if (sale.plan.some(line => line.status === 'returned')) receipt.append(el('p', 'The room plan and the receipt now differ. Freeze a new quote to buy a replacement.', 'notice'));
+    if (sale.plan.some(line => line.status === 'returned')) receipt.append(el('p', 'The room plan and the receipt now differ. Replace the returned piece with a one piece quote.', 'notice'));
     if (!sale.recorded) {
       receipt.append(el('h3', 'PayPal events'));
       if (sale.events && sale.events.length > 0) {
@@ -232,6 +254,38 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
   fragment.append(judges); root.replaceChildren(fragment);
   root.querySelectorAll('details').forEach((node, index) => { node.open = openDetails[index] ?? false; });
   if (focused >= 0) root.querySelectorAll<HTMLElement>(focusable)[focused]?.focus({ preventScroll: true });
+}
+const OWNED_SIZES: [string, string, keyof RoomSpec['owned']][] = [['desk', 'Desk', 'desk'], ['desk-chair', 'Desk chair', 'deskChair'], ['bookshelf', 'Bookshelf', 'bookshelf']];
+function roomSize(state: State, actions: Actions): HTMLElement {
+  const spec = state.design?.roomSpec ?? DEFAULT_ROOM_SPEC;
+  const locked = state.busy || paymentLocked(state.quote) || !state.design;
+  const box = el('div', '', 'room-size'); box.dataset.testid = 'room-size';
+  box.append(el('h3', 'Room size'), el('small', 'Rectangular rooms with one door on the south wall. Sizes in cm.'));
+  const field = (name: string, testId: string, label: string, value: number): HTMLElement => {
+    const wrap = el('div', '', 'room-field'); const id = `room-field-${name}`;
+    const caption = el('label', label); caption.htmlFor = id;
+    const input = el('input'); input.id = id; input.type = 'number'; input.inputMode = 'numeric'; input.step = '1'; input.dataset.testid = testId;
+    input.value = state.roomDraft?.[name] ?? String(value); input.disabled = locked;
+    input.addEventListener('input', () => actions.roomField(name, input.value));
+    input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); actions.roomApply(); } });
+    wrap.append(caption, input);
+    const error = state.roomErrors?.find(item => item.field === name);
+    if (error) { const message = el('small', error.message, 'alarm'); message.dataset.testid = 'room-error'; message.id = `${id}-error`; input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', message.id); wrap.append(message); }
+    return wrap;
+  };
+  const grid = el('div', '', 'room-grid');
+  grid.append(field('width', 'room-width', 'Width', spec.width), field('depth', 'room-depth', 'Depth', spec.depth),
+    field('door-left', 'door-left', 'Door from west wall', spec.door.left), field('door-width', 'door-width', 'Door width', spec.door.width));
+  const sizes = el('details', '', 'furniture-sizes'); sizes.dataset.testid = 'furniture-sizes'; sizes.append(el('summary', 'Furniture sizes'));
+  for (const [id, label, key] of OWNED_SIZES) {
+    const row = el('div', '', 'room-grid'); row.append(el('strong', label));
+    const size = spec.owned[key];
+    row.append(field(`size-${id}-w`, `size-${id}-w`, 'Width', size.w), field(`size-${id}-d`, `size-${id}-d`, 'Depth', size.d), field(`size-${id}-h`, `size-${id}-h`, 'Height', size.h));
+    sizes.append(row);
+  }
+  if (state.roomErrors?.some(item => item.field.startsWith('size-'))) sizes.open = true;
+  box.append(grid, sizes, button('Apply', actions.roomApply, locked, 'room-apply'));
+  return box;
 }
 export function renderStatus(root: HTMLElement, state: State): void {
   root.replaceChildren();

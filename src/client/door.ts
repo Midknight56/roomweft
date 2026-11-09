@@ -1,18 +1,23 @@
 import * as THREE from 'three';
+import { roomModel } from './room-model';
 
-export const doorSpec = { x: 220, z: 0, width: 80, height: 205, thickness: 4, angle: 70 } as const;
+const doorSpecNow = (): ReturnType<typeof doorSpec> => doorSpec();
+export function doorSpec() {
+  const door = roomModel().door;
+  return { x: door.hinge.x, z: door.hinge.z, width: door.radius, height: 205, thickness: 4, angle: 70 } as const;
+}
 export function roomDoor(trim: THREE.Material): THREE.Group {
-  const root = new THREE.Group();
+  const root = new THREE.Group(); const doorSpec = doorSpecNow();
   const box = (w: number, h: number, d: number, x: number, y: number, z: number, parent = root, material = trim): THREE.Mesh => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; parent.add(mesh); return mesh;
   };
   // The jambs sit outside the clear opening.
-  box(4, 209, 8, 218, 104.5, 0); box(4, 209, 8, 302, 104.5, 0); box(88, 4, 8, 260, 207, 0);
+  box(4, 209, 8, doorSpec.x - 2, 104.5, 0); box(4, 209, 8, doorSpec.x + doorSpec.width + 2, 104.5, 0); box(doorSpec.width + 8, 4, 8, doorSpec.x + doorSpec.width / 2, 207, 0);
   const hinge = new THREE.Group(); hinge.name = 'door-hinge'; hinge.position.set(doorSpec.x, 0, doorSpec.z); hinge.rotation.y = -THREE.MathUtils.degToRad(doorSpec.angle); root.add(hinge);
   const leafMaterial = trim.clone(); leafMaterial.transparent = true; leafMaterial.opacity = .35; leafMaterial.depthWrite = false;
-  const leaf = box(doorSpec.width, doorSpec.height, doorSpec.thickness, 40, 102.5, 0, hinge, leafMaterial); leaf.name = 'door-leaf';
+  const leaf = box(doorSpec.width, doorSpec.height, doorSpec.thickness, doorSpec.width / 2, 102.5, 0, hinge, leafMaterial); leaf.name = 'door-leaf';
   const brass = new THREE.MeshStandardMaterial({ color: '#B08D45', metalness: .75, roughness: .28 });
-  for (const side of [-1, 1]) { box(3, 7, 1, 72, 100, side * 2.5, hinge, brass); box(9, 2, 2, 69, 101, side * 4, hinge, brass); }
+  for (const side of [-1, 1]) { box(3, 7, 1, doorSpec.width - 8, 100, side * 2.5, hinge, brass); box(9, 2, 2, doorSpec.width - 11, 101, side * 4, hinge, brass); }
   return root;
 }
 
@@ -25,7 +30,7 @@ export function setDoorMode(root: THREE.Object3D, mode: 'Overview' | 'Plan' | 'W
 }
 
 export function doorArc(colour: string, warning: boolean): THREE.Group {
-  const root = new THREE.Group();
+  const root = new THREE.Group(); const doorSpec = doorSpecNow();
   if (warning) {
     const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(doorSpec.width, 0);
     shape.absarc(0, 0, doorSpec.width, 0, THREE.MathUtils.degToRad(doorSpec.angle), false); shape.lineTo(0, 0);

@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { DesignView, ReceiptView } from '../shared/api-types';
 import { footprintBounds, type FitReport, type Footprint } from '../shared/fit';
-import { ROOM, DOOR, STYLES, WINDOW } from '../shared/room';
-import { fitBadge, layoutOf, projectPoint } from './helpers';
+import { STYLES } from '../shared/room';
+import { roomModel, setRoomSpec } from './room-model';
+import { fitBadge, layoutOf, projectPoint, returnedHere } from './helpers';
 import { furniture, dispose, tag, setTagMode } from './meshes';
 import { texture } from './textures';
 import { theme } from './theme';
@@ -81,7 +82,8 @@ export class RoomScene {
     const top = modes ? modes.bottom - host.top - this.host.clientTop + 8 : 8;
     const bottom = tools && !tools.hidden ? tools.getBoundingClientRect().top - host.top - this.host.clientTop - 8 : height - 8;
     Object.assign(this.plan, planFrustum(width, height, { left: 8, right: width - 8, top, bottom }));
-    this.plan.position.set(ROOM.width / 2, 850, ROOM.depth / 2); this.plan.lookAt(ROOM.width / 2, 0, ROOM.depth / 2); this.plan.updateProjectionMatrix();
+    const { width: roomWidth, depth: roomDepth } = roomModel().room;
+    this.plan.position.set(roomWidth / 2, 850, roomDepth / 2); this.plan.lookAt(roomWidth / 2, 0, roomDepth / 2); this.plan.updateProjectionMatrix();
   }
   room(style: typeof STYLES[number]): void {
     dispose(this.shell); this.shell.clear();
@@ -91,35 +93,41 @@ export class RoomScene {
     const addBox = (w: number, h: number, d: number, x: number, y: number, z: number, material: THREE.Material): THREE.Mesh => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material); mesh.position.set(x, y, z); mesh.receiveShadow = true; mesh.castShadow = true; this.shell.add(mesh); return mesh;
     };
-    addBox(380, 4, 320, 190, -2, 160, wood);
+    const { room: size, door: opening, window: glass, ownedItems } = roomModel();
+    const W = size.width, D = size.depth, L = opening.opening.minX, R = opening.opening.maxX;
+    const wMin = glass.minX, wMax = glass.maxX, wW = wMax - wMin, wC = (wMin + wMax) / 2;
+    addBox(W, 4, D, W / 2, -2, D / 2, wood);
     // The front and east walls are open in the dollhouse view.
-    addBox(4, 260, 320, -2, 130, 160, plaster);
-    addBox(140, 260, 4, 70, 130, 322, plaster); addBox(120, 90, 4, 200, 45, 322, plaster); addBox(120, 40, 4, 200, 240, 322, plaster); addBox(120, 260, 4, 320, 130, 322, plaster);
-    for (const [w, h, d, x, y, z] of [[220, 250, 4, 110, 135, -2], [80, 250, 4, 340, 135, -2], [80, 51, 4, 260, 234.5, -2], [4, 260, 320, 382, 130, 160], [380, 4, 320, 190, 262, 160]]) {
+    addBox(4, 260, D, -2, 130, D / 2, plaster);
+    addBox(wMin, 260, 4, wMin / 2, 130, D + 2, plaster); addBox(wW, 90, 4, wC, 45, D + 2, plaster); addBox(wW, 40, 4, wC, 240, D + 2, plaster); addBox(W - wMax, 260, 4, (wMax + W) / 2, 130, D + 2, plaster);
+    for (const [w, h, d, x, y, z] of [[L, 250, 4, L / 2, 135, -2], [W - R, 250, 4, (R + W) / 2, 135, -2], [R - L, 51, 4, (L + R) / 2, 234.5, -2], [4, 260, D, W + 2, 130, D / 2], [W, 4, D, W / 2, 262, D / 2]]) {
       const wall = addBox(w, h, d, x, y, z, plaster); wall.userData.ceiling = true; wall.visible = this.mode === 'Walk';
     }
-    addBox(380, 8, 3, 190, 4, 318, trim); addBox(3, 8, 320, 2, 4, 160, trim);
-    const sky = new THREE.MeshBasicMaterial({ color: style.light.kind === 'evening' ? '#213961' : '#B8D9E8' }); addBox(120, 130, 2, 200, 155, 323, sky);
-    for (const x of [140, 200, 260]) addBox(4, 134, 8, x, 155, 319, trim);
-    for (const y of [90, 220]) addBox(124, 4, 8, 200, y, 319, trim);
-    addBox(220, 10, 4, 110, 5, -2, plaster); addBox(80, 10, 4, 340, 5, -2, plaster);
+    addBox(W, 8, 3, W / 2, 4, D - 2, trim); addBox(3, 8, D, 2, 4, D / 2, trim);
+    const sky = new THREE.MeshBasicMaterial({ color: style.light.kind === 'evening' ? '#213961' : '#B8D9E8' }); addBox(wW, 130, 2, wC, 155, D + 3, sky);
+    for (const x of [wMin, wC, wMax]) addBox(4, 134, 8, x, 155, D - 1, trim);
+    for (const y of [90, 220]) addBox(wW + 4, 4, 8, wC, y, D - 1, trim);
+    addBox(L, 10, 4, L / 2, 5, -2, plaster); addBox(W - R, 10, 4, (R + W) / 2, 5, -2, plaster);
     const door = roomDoor(trim); setDoorMode(door, this.mode); this.shell.add(door);
     this.shell.add(new THREE.HemisphereLight('#FFF2D8', '#6B493B', style.light.kind === 'evening' ? .45 : 1.7));
-    const sun = new THREE.DirectionalLight(style.light.colour, style.light.intensity * 2.3); sun.position.set(170, 330, 430); sun.target.position.set(190, 0, 130); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, far: 1200 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .6; this.shell.add(sun, sun.target);
-    for (const [x, y, z] of [[310, 105, 285], [20, 150, 250]]) { const lamp = new THREE.PointLight('#FFCB8A', style.light.kind === 'evening' ? 15000 : 2500, 300, 2); lamp.position.set(x, y, z); this.shell.add(lamp); }
+    const sun = new THREE.DirectionalLight(style.light.colour, style.light.intensity * 2.3); sun.position.set(W / 2 - 20, 330, D + 110); sun.target.position.set(W / 2, 0, D * 13 / 32); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, far: 1200 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .6; this.shell.add(sun, sun.target);
+    const desk = ownedItems.find(item => item.id === 'desk')!;
+    for (const [x, y, z] of [[desk.x, 105, desk.z], [20, 150, D - 70]]) { const lamp = new THREE.PointLight('#FFCB8A', style.light.kind === 'evening' ? 15000 : 2500, 300, 2); lamp.position.set(x, y, z); this.shell.add(lamp); }
   }
   loading(): void { this.suspended = true; window.__roomweftReady = false; }
   resume(): void { this.suspended = false; }
   update(design: DesignView, receipt: ReceiptView | null): void {
     const version = this.readiness.loading();
     const models: Promise<void>[] = [];
-    if (this.design?.style !== design.style) this.room(STYLES.find(style => style.id === design.style) ?? STYLES[0]);
+    const resized = setRoomSpec(design.roomSpec);
+    if (resized || this.design?.style !== design.style) this.room(STYLES.find(style => style.id === design.style) ?? STYLES[0]);
+    if (resized) this.resize();
     this.design = design; this.layout = layoutOf(design); dispose(this.pieces); this.pieces.clear(); this.objects.clear();
     for (const item of this.layout) {
       const slot = design.slots.find(slot => slot.slot === item.id); const colour = slot?.pick?.colors[0] ?? (item.source === 'owned' ? '#A67E56' : theme.thread);
       let loaded = (): void => {}; models.push(new Promise<void>(resolve => { loaded = resolve; }));
       const root = furniture(item, /^#[\da-f]{6}$/i.test(colour) ? colour : theme.thread, loaded, slot?.pick?.title);
-      if (receipt?.plan.some(line => line.roomObjectId === item.id && line.status === 'returned')) { root.traverse(child => { if (child instanceof THREE.Mesh) { const material = (child.material as THREE.MeshStandardMaterial).clone(); material.transparent = true; material.opacity = .3; child.material = material; } }); const returned = tag('Returned', theme.thread); returned.position.y = item.h + 34; root.add(returned); root.userData.returned = true; }
+      if (returnedHere(receipt, design, item.id)) { root.traverse(child => { if (child instanceof THREE.Mesh) { const material = (child.material as THREE.MeshStandardMaterial).clone(); material.transparent = true; material.opacity = .3; child.material = material; } }); const returned = tag('Returned', theme.thread); returned.position.y = item.h + 34; root.add(returned); root.userData.returned = true; }
       this.objects.set(item.id, root); this.pieces.add(root);
     }
     setTagMode(this.pieces, this.mode);

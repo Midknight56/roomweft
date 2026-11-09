@@ -43,3 +43,45 @@ it.each([[54,35.6],[32,96.5],[59.7,58.4],[82.6,33],[35.6,35.6]])('places a %s by
   const fit = checkFit([...OWNED_ITEMS.map(item => ({...item,source:'owned' as const,dims:'verified' as const})),lamp],ROOM,DOOR,WINDOW);
   expect(fit.inside).toEqual([]); expect(fit.overlaps).toEqual([]); expect(fit.window).toEqual([]);
 });
+
+describe("measured rooms", () => {
+  it("builds exactly today's room from the default spec", async () => {
+    const { DEFAULT_ROOM_SPEC, roomFromSpec } = await import("../../src/shared/room");
+    const model = roomFromSpec(DEFAULT_ROOM_SPEC);
+    expect(model.room).toEqual(ROOM);
+    expect(model.door).toEqual(DOOR);
+    expect(model.window).toEqual(WINDOW);
+    expect(model.ownedItems).toEqual(OWNED_ITEMS);
+    expect(model.slots).toEqual(SLOTS);
+  });
+  it("explains each bad measurement next to its field", async () => {
+    const { DEFAULT_ROOM_SPEC, validateRoomSpec } = await import("../../src/shared/room");
+    const spec = structuredClone(DEFAULT_ROOM_SPEC);
+    expect(validateRoomSpec(spec)).toEqual([]);
+    expect(validateRoomSpec({ ...spec, width: 150 })).toContainEqual({ field: "width", message: "Use a width from 200 to 800 cm." });
+    expect(validateRoomSpec({ ...spec, depth: 900 })).toContainEqual({ field: "depth", message: "Use a depth from 200 to 800 cm." });
+    expect(validateRoomSpec({ ...spec, door: { left: 320, width: 80 } })[0]).toMatchObject({ field: "door-left" });
+    expect(validateRoomSpec({ ...spec, door: { left: 5, width: 80 } })[0]).toMatchObject({ field: "door-left" });
+    expect(validateRoomSpec({ ...spec, door: { left: 220, width: 60 } })).toContainEqual({ field: "door-width", message: "Use a door width from 70 to 100 cm." });
+    expect(validateRoomSpec({ ...spec, owned: { ...spec.owned, bookshelf: { w: 80, d: 30, h: 400 } } })).toContainEqual({ field: "size-bookshelf-h", message: "Use a bookshelf height from 20 to 300 cm." });
+    const big = { ...spec, width: 220, depth: 220, door: { left: 20, width: 80 }, owned: { ...spec.owned, desk: { w: 250, d: 60, h: 75 } } };
+    expect(validateRoomSpec(big)).toContainEqual({ field: "size-desk-w", message: "The desk does not fit inside this room." });
+    expect(validateRoomSpec({ ...spec, width: "wide" })[0]).toMatchObject({ field: "width" });
+    expect(validateRoomSpec(null)[0]).toMatchObject({ field: "width" });
+  });
+  it("keeps every piece inside the walls of a small and a large room", async () => {
+    const { DEFAULT_ROOM_SPEC, roomFromSpec } = await import("../../src/shared/room");
+    for (const [width, depth] of [[300, 280], [450, 360]]) {
+      const model = roomFromSpec({ ...DEFAULT_ROOM_SPEC, width, depth, door: { left: 140, width: 80 } });
+      expect(model.room).toEqual({ width, depth, height: 260 });
+      expect(model.door).toMatchObject({ opening: { minX: 140, maxX: 220 }, hinge: { x: 140, z: 0 }, radius: 80 });
+      expect((model.window.minX + model.window.maxX) / 2).toBeCloseTo(width / 2 + 10);
+      const owned: Footprint[] = model.ownedItems.map(item => ({ ...item, source: "owned", dims: "verified" }));
+      expect(checkFit(owned, model.room, model.door, model.window).inside).toEqual([]);
+      const desk = owned.find(item => item.id === "desk")!;
+      expect(footprintBounds(desk).maxX).toBe(width - 10);
+      expect(footprintBounds(desk).maxZ).toBe(depth - 5);
+      expect(footprintBounds(owned.find(item => item.id === "bookshelf")!).minX).toBe(5);
+    }
+  });
+});

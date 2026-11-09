@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { evaluateDesignFit, footprintBounds, moveItem } from '../shared/fit';
 import type { Placement } from '../shared/api-types';
-import { ROOM } from '../shared/room';
+import { roomModel } from './room-model';
 import { collides, isDesktopWidth, layoutOf, rotate, snap } from './helpers';
 import type { RoomScene, Mode } from './scene';
 import { walkStart } from './walk-start';
@@ -57,8 +57,8 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
     overlay.hidden = view.mode !== 'Plan'; if (overlay.hidden) return;
     view.plan.updateMatrixWorld();
     const rect = canvas.getBoundingClientRect(); const host = view.host.getBoundingClientRect();
-    const northWest = new THREE.Vector3(0,0,ROOM.depth).project(view.plan);
-    const southEast = new THREE.Vector3(ROOM.width,0,0).project(view.plan);
+    const northWest = new THREE.Vector3(0,0,roomModel().room.depth).project(view.plan);
+    const southEast = new THREE.Vector3(roomModel().room.width,0,0).project(view.plan);
     northWest.x *= -1; southEast.x *= -1;
     const left = (northWest.x + 1) / 2 * rect.width; const top = (1 - northWest.y) / 2 * rect.height;
     const width = (southEast.x - northWest.x) / 2 * rect.width; const height = (northWest.y - southEast.y) / 2 * rect.height;
@@ -87,7 +87,7 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
       }
       button.setAttribute('aria-label',item.label);
       const bounds = footprintBounds(item);
-      Object.assign(button.style, { left: `${bounds.minX / ROOM.width * 100}%`, top: `${(1-bounds.maxZ / ROOM.depth)*100}%`, width: `${(bounds.maxX-bounds.minX)/ROOM.width*100}%`, height: `${(bounds.maxZ-bounds.minZ)/ROOM.depth*100}%` });
+      Object.assign(button.style, { left: `${bounds.minX / roomModel().room.width * 100}%`, top: `${(1-bounds.maxZ / roomModel().room.depth)*100}%`, width: `${(bounds.maxX-bounds.minX)/roomModel().room.width*100}%`, height: `${(bounds.maxZ-bounds.minZ)/roomModel().room.depth*100}%` });
     }
   }
   let selection: string | null = null; let drag: { id: string; x: number; z: number; pointer: number; original: typeof view.layout; moved: boolean } | null = null;
@@ -174,7 +174,7 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
         return;
       }
       view.walk.position.set(start.x, 160, start.z);
-      view.walk.lookAt(ROOM.width / 2, 95, ROOM.depth / 2);
+      view.walk.lookAt(roomModel().room.width / 2, 95, roomModel().room.depth / 2);
       yaw = view.walk.rotation.y; pitch = view.walk.rotation.x;
     }
     if (document.pointerLockElement === canvas) document.exitPointerLock();

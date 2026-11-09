@@ -5,9 +5,9 @@ import type { Actions } from './panel';
 import { RoomScene } from './scene';
 import { controls } from './controls';
 import { threads } from './thread';
-import { approvalUrl, checkoutAllowed, paymentLocked, restoredDesign, shouldHidePhoneJump } from './helpers';
+import { approvalUrl, checkoutAllowed, paymentLocked, restoredDesign, roomSpecFrom, shouldHidePhoneJump } from './helpers';
 import type { DesignView, ReceiptView } from '../shared/api-types';
-import { STYLES } from '../shared/room';
+import { DEFAULT_ROOM_SPEC, STYLES, validateRoomSpec } from '../shared/room';
 import { checkoutReturn, returnNotice } from './return-state';
 
 window.__roomweftReady = false;
@@ -133,9 +133,17 @@ const actions: Actions = {
   lock: id => { void run(async () => {
     const state = store.get(); const selected = state.owned.find(item => item.id === id); if (!selected) return;
     const owned = state.owned.map(item => item.id === id || (id === 'desk' && item.id === 'desk-chair') || (id === 'desk-chair' && item.id === 'desk') ? { ...item, locked: !selected.locked } : item);
-    accept(await api.design(state.style, state.budget, owned, false));
+    accept(await api.design(state.style, state.budget, owned, false, undefined, state.design?.roomSpec));
   }); },
-  design: live => { void run(async () => { const state = store.get(); accept(await api.design(state.style, state.budget, state.owned, live, state.brief)); try { store.set({ status: await api.status() }); } catch { /* A failed status refresh leaves the design usable. */ } }); },
+  design: live => { void run(async () => { const state = store.get(); accept(await api.design(state.style, state.budget, state.owned, live, state.brief, state.design?.roomSpec)); try { store.set({ status: await api.status() }); } catch { /* A failed status refresh leaves the design usable. */ } }); },
+  roomField: (field, value) => { store.set({ roomDraft: { ...store.get().roomDraft, [field]: value } }, false); },
+  roomApply: () => {
+    const state = store.get(); const design = state.design; if (!design) return;
+    const spec = roomSpecFrom(design.roomSpec ?? DEFAULT_ROOM_SPEC, state.roomDraft ?? {});
+    const errors = validateRoomSpec(spec);
+    if (errors.length) { store.set({ roomErrors: errors }); return; }
+    void run(async () => { accept(await api.room(design.id, spec)); store.set({ roomDraft: {}, roomErrors: [] }); });
+  },
   swap: (slot, productId) => { void run(async () => { const design = store.get().design; if (design) accept(await api.swap(design.id, slot, productId)); }); },
   quote: () => { void run(async () => { const design = store.get().design; if (design) { clearReceiptUrl(); store.set({ quote: await api.quote(design) }); } }); },
   checkout: (method = 'paypal') => { void run(async () => {
@@ -166,6 +174,13 @@ const actions: Actions = {
       await api.refund(receipt.quote.id, lineId); await refreshReceipt(receipt.quote.id);
     }
   }); },
+  replace: (lineId, quoteId) => { void run(async () => {
+    const receipt = store.get().receipt; const original = quoteId ?? (receipt && !receipt.recorded ? receipt.quote.id : null); if (!original) return;
+    const answer = await api.replace(original, lineId);
+    accept(answer.design); store.set({ quote: answer.quote });
+    document.querySelector('#basket')?.scrollIntoView({ block: 'start' });
+  }); },
+  openReceipt: quoteId => { void run(() => refreshReceipt(quoteId)); },
   refreshReceipt: () => { void run(refreshReceipt); },
   select: id => { selectItem(id); },
 };
@@ -174,6 +189,8 @@ const unsubscribe = store.subscribe(state => {
   phoneJump.update();
   const finding = document.querySelector<HTMLElement>('#room-finding');
   if (finding) { finding.textContent = state.design && !state.design.fit.passes ? state.design.fit.messages[0] ?? '' : ''; finding.hidden = !finding.textContent; }
+  const size = document.querySelector<HTMLElement>('#room-dimensions'); const spec = state.design?.roomSpec ?? DEFAULT_ROOM_SPEC;
+  if (size) size.textContent = `${spec.width} x ${spec.depth} cm`;
   if (state.design && (state.design !== previous || state.receipt !== previousReceipt)) { view?.update(state.design, state.receipt); previous = state.design; previousReceipt = state.receipt; }
 });
 let timer: ReturnType<typeof setTimeout> | undefined;

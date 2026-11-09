@@ -102,3 +102,15 @@ describe('phone navigation and responsive helpers', () => {
     expect(isDesktopWidth(width)).toBe(expected);
   });
 });
+
+describe('room size fields', () => {
+  it('turns typed fields into a room spec and blanks into numbers that fail validation', async () => {
+    const { roomSpecFrom } = await import('../../src/client/helpers');
+    const { DEFAULT_ROOM_SPEC, validateRoomSpec } = await import('../../src/shared/room');
+    expect(roomSpecFrom(DEFAULT_ROOM_SPEC, {})).toEqual(DEFAULT_ROOM_SPEC);
+    const typed = roomSpecFrom(DEFAULT_ROOM_SPEC, { width: '300', depth: '280', 'door-left': '140', 'size-desk-chair-h': '95' }) as typeof DEFAULT_ROOM_SPEC;
+    expect(typed).toMatchObject({ width: 300, depth: 280, door: { left: 140, width: 80 }, owned: { deskChair: { w: 55, d: 55, h: 95 } } });
+    expect(validateRoomSpec(typed)).toEqual([]);
+    expect(validateRoomSpec(roomSpecFrom(DEFAULT_ROOM_SPEC, { depth: ' ' }))).toEqual([{ field: 'depth', message: 'Use a depth from 200 to 800 cm.' }]);
+  });
+});

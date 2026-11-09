@@ -283,3 +283,64 @@ it('rejects an unknown payment method before starting checkout', async () => {
   expect((await call('/api/checkout', { quoteId: 'quote', method: 'cash' })).status).toBe(400);
   expect(start).not.toHaveBeenCalled();
 });
+describe('worker replacement route', () => {
+  async function paidChair(call: ReturnType<typeof fixture>['call'], db: FakeD1, productId: (design: DesignView) => string) {
+    let design = await (await call('/api/design', { ...input, budget: 1500 })).json() as DesignView;
+    if (!design.fit.passes) {
+      const slot = design.slots.find(slot => slot.alternates.some(alt => alt.fit.passes))!;
+      design = await (await call(`/api/design/${design.id}/swap`, { slot: slot.slot, productId: slot.alternates.find(alt => alt.fit.passes)!.candidate.id })).json() as DesignView;
+    }
+    const chair = design.slots.find(slot => slot.slot === 'reading-chair')!;
+    const line = { lineId: 'reading-chair', roomObjectId: 'reading-chair', productId: productId(design), title: 'Old chair', priceCents: 4000, currency: 'USD', url: 'https://shop.test/old', domain: 'shop.test', fitStatus: 'fits', source: chair.source };
+    db.sqlite.prepare(`INSERT INTO quotes(id, visitor, design_id, design_version, lines, total_cents, currency, hash, state, capture_id, captured_cents, refunded_cents, created_at, updated_at)
+      VALUES ('first', ?, ?, ?, ?, 4000, 'USD', 'hash', 'paid', 'capture', 4000, 4000, ?, ?)`).run(visitor, design.id, design.version, JSON.stringify([line]), at, at);
+    db.sqlite.prepare("INSERT INTO refunds(id,quote_id,line_id,amount_cents,state,created_at,updated_at) VALUES('refund','first',?,4000,'completed',?,?)").run(JSON.stringify(['first', 'reading-chair']), at, at);
+    return design;
+  }
+  it('freezes a one piece replacement, repeats it, and counts its payment against the checkout cap', async () => {
+    const { call, db } = fixture();
+    const design = await paidChair(call, db, () => 'returned-product');
+    const response = await call('/api/replace', { quoteId: 'first', lineId: 'reading-chair' });
+    expect(response.status).toBe(200);
+    const answer = await response.json() as { quote: QuoteView; design: DesignView };
+    expect(answer.quote).toMatchObject({ state: 'open', designId: design.id, replaces: { quoteId: 'first', lineId: 'reading-chair' } });
+    expect(answer.quote.lines).toHaveLength(1);
+    expect(answer.quote.lines[0].productId).toBe(design.slots.find(slot => slot.slot === 'reading-chair')!.pick!.id);
+    expect(answer.design.id).toBe(design.id);
+    const again = await (await call('/api/replace', { quoteId: 'first', lineId: 'reading-chair' })).json() as { quote: QuoteView };
+    expect(again.quote.id).toBe(answer.quote.id);
+    cap(db, `checkout:${visitor}`, 6);
+    expect((await call('/api/checkout', { quoteId: answer.quote.id, method: 'card' })).status).toBe(429);
+  });
+  it('refuses unknown lines, other visitors, unreturned lines and a spot where nothing else fits', async () => {
+    const { call, db } = fixture();
+    await paidChair(call, db, design => design.slots.find(slot => slot.slot === 'reading-chair')!.pick!.id);
+    expect((await call('/api/replace', { quoteId: 'first', lineId: 'sofa' })).status).toBe(400);
+    expect((await call('/api/replace', { quoteId: 'first', lineId: 'reading-chair' }, 'b'.repeat(32))).status).toBe(404);
+    expect((await call('/api/replace', { quoteId: 'first', lineId: 'floor-lamp' })).status).toBe(409);
+    const none = await call('/api/replace', { quoteId: 'first', lineId: 'reading-chair' });
+    expect(none.status).toBe(409);
+    expect(await none.json()).toMatchObject({ code: 'no_fit', error: 'No other piece fits this spot right now.' });
+  });
+});
+describe('worker room route', () => {
+  it('changes the measured room, raises the version and refuses bad sizes with the first error', async () => {
+    const { call } = fixture();
+    const { DEFAULT_ROOM_SPEC } = await import('../../src/shared/room');
+    const design = await (await call('/api/design', input)).json() as DesignView;
+    expect(design.roomSpec).toEqual(DEFAULT_ROOM_SPEC);
+    const changed = await call('/api/room', { designId: design.id, roomSpec: { ...DEFAULT_ROOM_SPEC, width: 300, depth: 280, door: { left: 140, width: 80 } } });
+    expect(changed.status).toBe(200);
+    expect(await changed.json()).toMatchObject({ version: design.version + 1, roomSpec: { width: 300, depth: 280 } });
+    const bad = await call('/api/room', { designId: design.id, roomSpec: { ...DEFAULT_ROOM_SPEC, door: { left: 220, width: 120 } } });
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ code: 'invalid', error: 'Use a door width from 70 to 100 cm.' });
+    expect((await call('/api/room', { designId: design.id })).status).toBe(400);
+    expect((await call('/api/room', { designId: design.id, roomSpec: DEFAULT_ROOM_SPEC }, 'b'.repeat(32))).status).toBe(404);
+    const owned = (await import('../../src/shared/room')).roomFromSpec({ ...DEFAULT_ROOM_SPEC, width: 450 }).ownedItems.map(({ id, x, z, rot, locked }) => ({ id, x, z, rot, locked }));
+    const measured = await call('/api/design', { ...input, owned, roomSpec: { ...DEFAULT_ROOM_SPEC, width: 450 } });
+    expect(measured.status).toBe(200);
+    expect(await measured.json()).toMatchObject({ roomSpec: { width: 450 } });
+    expect((await call('/api/design', { ...input, roomSpec: { width: 9000 } })).status).toBe(400);
+  });
+});

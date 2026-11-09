@@ -1,7 +1,8 @@
-import type { Candidate, DesignView, SlotView, QuoteView, RefundState } from '../shared/api-types';
+import type { Candidate, DesignView, SlotView, QuoteView, ReceiptView, RefundState } from '../shared/api-types';
 import type { Footprint, FitReport, Point, Rotation } from '../shared/fit';
 import { footprintBounds } from '../shared/fit';
-import { NOMINAL_DIMS, OWNED_ITEMS, ROOM, SLOTS } from '../shared/room';
+import { DEFAULT_ROOM_SPEC, NOMINAL_DIMS, OWNED_ITEMS, SLOTS, roomFromSpec, type RoomSpec } from '../shared/room';
+import { roomModel } from './room-model';
 
 export const snap = (value: number): number => Math.round(value / 5) * 5;
 export const rotate = (value: Rotation): Rotation => ((value + 90) % 360) as Rotation;
@@ -21,7 +22,7 @@ export function fitBadge(fit: FitReport, id: string): { text: string; tone: 'ala
   return { text: 'Fits', tone: 'moss' };
 }
 export function layoutOf(design: DesignView): Footprint[] {
-  const owned: Footprint[] = OWNED_ITEMS.map(item => ({ ...item, ...design.owned.find(state => state.id === item.id), source: 'owned', dims: 'verified' }));
+  const owned: Footprint[] = roomFromSpec(design.roomSpec ?? DEFAULT_ROOM_SPEC).ownedItems.map(item => ({ ...item, ...design.owned.find(state => state.id === item.id), source: 'owned', dims: 'verified' }));
   const slots: Footprint[] = design.slots.flatMap(slot => {
     if (!slot.pick || !slot.placement) return [];
     const dims = slot.pick.dims ?? NOMINAL_DIMS[slot.slot];
@@ -30,7 +31,7 @@ export function layoutOf(design: DesignView): Footprint[] {
   return [...owned, ...slots];
 }
 export function collides(point: Point, layout: readonly Footprint[], radius = 25): boolean {
-  if (point.x < radius || point.z < radius || point.x > ROOM.width - radius || point.z > ROOM.depth - radius) return true;
+  if (point.x < radius || point.z < radius || point.x > roomModel().room.width - radius || point.z > roomModel().room.depth - radius) return true;
   return layout.some(item => {
     if (item.kind === 'rug') return false;
     const box = footprintBounds(item);
@@ -121,3 +122,16 @@ export function restoredDesign(raw: string | null, quoteId: string): DesignView 
 }
 export const shouldHidePhoneJump = (picksVisible: boolean, basketVisible: boolean): boolean => picksVisible || basketVisible;
 export const isDesktopWidth = (width: number): boolean => width >= 700;
+/** True when the room object shows as returned: a refunded line whose product is still the pick in that spot. */
+export function returnedHere(receipt: ReceiptView | null, design: DesignView, objectId: string): boolean {
+  const pick = design.slots.find(slot => slot.slot === objectId)?.pick?.id;
+  return !!receipt?.plan.some(line => line.roomObjectId === objectId && line.status === 'returned' && (!line.productId || line.productId === pick));
+}
+
+/** The room spec the visitor typed: the design's spec with each edited field replaced. A blank field becomes NaN, so it fails validation. */
+export function roomSpecFrom(base: RoomSpec, draft: Readonly<Record<string, string>>): unknown {
+  const n = (field: string, fallback: number): number => draft[field] === undefined ? fallback : draft[field].trim() === '' ? Number.NaN : Number(draft[field]);
+  const size = (id: string, value: RoomSpec['owned']['desk']) => ({ w: n(`size-${id}-w`, value.w), d: n(`size-${id}-d`, value.d), h: n(`size-${id}-h`, value.h) });
+  return { width: n('width', base.width), depth: n('depth', base.depth), door: { left: n('door-left', base.door.left), width: n('door-width', base.door.width) },
+    owned: { desk: size('desk', base.owned.desk), deskChair: size('desk-chair', base.owned.deskChair), bookshelf: size('bookshelf', base.owned.bookshelf) } };
+}

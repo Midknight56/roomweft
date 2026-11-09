@@ -16,7 +16,7 @@ const takes = {};
 const beats = [];
 const failures = [];
 let browser;
-const only = (process.env.TAKES ?? 'main,paypal,phone,walk').split(',');
+const only = (process.env.TAKES ?? 'story,brief,phone').split(',');
 process.on('unhandledRejection', error => { console.error('late rejection:', String(error?.message ?? error).split(String.fromCharCode(10))[0]); });
 
 async function pointAt(page, locator) {
@@ -279,8 +279,201 @@ async function phoneTake() {
   finally { await closeTake('phone', take).catch(error => failures.push({ take: 'phone', error: String(error?.message ?? error) })); }
 }
 
+// Where a proof sits on screen, in video pixels, so the cut can show it as a readable close up.
+async function boxOf(locator) {
+  const box = await locator.boundingBox().catch(() => null);
+  return box ? { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } : null;
+}
+async function holdOn(page, take, name, startedAt, seconds, locator, extra = '') {
+  await locator.scrollIntoViewIfNeeded().catch(() => {}); await page.waitForTimeout(500);
+  const t = (Date.now() - startedAt) / 1000; const box = await boxOf(locator);
+  const text = ((await textOf(locator).catch(() => '')) + (extra ? `\n${extra}` : '')).trim();
+  await page.waitForTimeout(seconds * 1000);
+  beats.push({ take, name, t, end: (Date.now() - startedAt) / 1000, text, box });
+}
+async function walkLook(page, startedAt, take) {
+  await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(600);
+  await click(page, page.getByTestId('mode-walk')); await page.waitForTimeout(800);
+  const box = await page.locator('#room canvas').first().boundingBox();
+  const cy = box.y + box.height / 2; let x = box.x + box.width - 20;
+  await page.mouse.move(x, cy); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(1200);
+  const t0 = (Date.now() - startedAt) / 1000;
+  async function pan(dx, seconds) { const steps = Math.round(seconds * 30); const from = x; for (let i = 1; i <= steps; i++) { x = from + dx * i / steps; await page.mouse.move(x, cy); await page.waitForTimeout(1000 / 30); } }
+  async function key(k, seconds) { await page.keyboard.down(k); await page.waitForTimeout(seconds * 1000); await page.keyboard.up(k); }
+  await pan(-Number(process.env.WALK_TURN ?? 1100), 6); await page.waitForTimeout(1000);
+  await key('w', Number(process.env.WALK_STEP ?? 0.9)); await page.waitForTimeout(1000);
+  await pan(160, 2); await page.waitForTimeout(800); await pan(-160, 2); await page.waitForTimeout(1200);
+  beats.push({ take, name: 'walk', t: t0, end: (Date.now() - startedAt) / 1000, text: await textOf(page.locator('#view-hint')).catch(() => ''), box: null });
+  await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(500);
+  await click(page, page.getByTestId('mode-overview')); await page.waitForTimeout(800);
+}
+// One renter, one basket, one purchase: the order the review asked for.
+async function storyTake() {
+  let take;
+  try {
+    take = await newTake('story', { width: 1920, height: 1080 });
+    const { page, startedAt } = take;
+    await load(take);
+    await hold(page, 'story', 'load', startedAt, 6, await textOf(caption(page)));
+
+    const roomBox = page.getByTestId('room-size');
+    if (await roomBox.count()) {
+      const fold = page.getByTestId('furniture-sizes');
+      if (await fold.count()) await click(page, fold.locator('summary')).catch(() => {});
+      await holdOn(page, 'story', 'room', startedAt, 5, roomBox);
+    } else beats.push({ take: 'story', name: 'room', t: 0, end: 0, text: 'sample room only', box: null });
+
+    const chairCard = page.getByTestId('slot-reading-chair');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const canvasBox = await page.locator('#room canvas').first().boundingBox();
+    await page.mouse.move(canvasBox.x + canvasBox.width * .68, canvasBox.y + canvasBox.height * .56, { steps: 25 });
+    await hold(page, 'story', 'door-room', startedAt, 3, await textOf(caption(page)));
+    await holdOn(page, 'story', 'door-card', startedAt, 5, chairCard);
+
+    const swap = chairCard.getByRole('button', { name: 'Swap for one that fits' });
+    const swapResponse = page.waitForResponse(response => /\/api\/design\/[^/]+\/swap$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST');
+    await click(page, swap);
+    const swapDesign = await (await swapResponse).json();
+    await page.waitForFunction(() => [...document.querySelectorAll('#panel .notice, #panel [role="status"]')].some(node => /cm wide|clears the door swing|adds \$/i.test(node.textContent ?? '')));
+    await holdOn(page, 'story', 'swap', startedAt, 5, swapText(page));
+    await holdOn(page, 'story', 'swap-card', startedAt, 4, page.getByTestId('slot-reading-chair'));
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await click(page, page.getByTestId('mode-plan'));
+    await hold(page, 'story', 'plan-path', startedAt, 4, await textOf(page.locator('#view-hint')));
+    const failed = await designResponse(page, () => dragRoomObject(page, 'bookshelf', 260, 155));
+    await page.waitForFunction(() => [...document.querySelectorAll('#panel .fit-message, #panel .alarm')].some(node => /walkway|under 76/i.test(node.textContent ?? '')));
+    await hold(page, 'story', 'plan-fail', startedAt, 4, (await textOf(visibleFailure(page)).catch(() => '')) || failed.fit.messages.join(' '));
+    const shelf = swapDesign.owned.find(item => item.id === 'bookshelf');
+    const restored = await designResponse(page, () => dragRoomObject(page, 'bookshelf', shelf.x, shelf.z));
+    if (!restored.fit.passes) failures.push({ take: 'story', error: 'restore did not pass: ' + restored.fit.messages.join(' ') });
+    await hold(page, 'story', 'plan-pass', startedAt, 3, 'restored passes: ' + restored.fit.passes);
+    await click(page, page.getByTestId('mode-overview'));
+
+    const rugCard = page.getByTestId('slot-rug');
+    const rugSize = await rugCard.locator('.pick-size').first().innerText().catch(() => '');
+    if (/\d\s*[x×]\s*\d/.test(rugSize)) {
+      const options = rugCard.locator('details').first(); await click(page, options.locator('summary'));
+      const unsized = rugCard.locator('.alternate').filter({ hasText: 'Fit unverified' }).first();
+      if (await unsized.count()) {
+        await holdOn(page, 'story', 'unverified-option', startedAt, 3, unsized);
+        await designResponse(page, () => click(page, unsized.getByRole('button', { name: 'Choose this item' })));
+        await ready(page);
+      } else failures.push({ take: 'story', error: 'no unsized rug option in this run' });
+    }
+    await holdOn(page, 'story', 'unverified-card', startedAt, 4, page.getByTestId('slot-rug'));
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(400);
+    await hold(page, 'story', 'unverified-room', startedAt, 4, await textOf(caption(page)));
+
+    await walkLook(page, startedAt, 'story');
+
+    await holdOn(page, 'story', 'summary', startedAt, 3, page.getByTestId('summary'));
+    await holdOn(page, 'story', 'basket', startedAt, 4, page.locator('#basket, [data-testid="basket"]').first());
+    let repriced = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const quoteResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/quote' && response.request().method() === 'POST');
+      await click(page, page.getByTestId('freeze-quote')); await quoteResponse;
+      await holdOn(page, 'story', attempt ? 'quote-again' : 'quote', startedAt, 3, page.getByTestId('pay-card'));
+      const checkoutResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/checkout' && response.request().method() === 'POST', { timeout: 60000 });
+      await click(page, page.getByTestId('pay-card'));
+      const response = await checkoutResponse; const answer = await response.json();
+      if (attempt === 0 && response.status() === 409 && answer.code === 'price_changed') {
+        repriced = true; await page.waitForTimeout(800);
+        await holdOn(page, 'story', 'reprice', startedAt, 5, page.locator('#panel .notice, #panel [role="alert"], #panel .alarm').filter({ hasText: /price/i }).first());
+        continue;
+      }
+      assert.ok(response.ok(), 'Checkout must succeed.');
+      const state = answer.quote?.state ?? answer.state; console.error('card checkout', response.status(), state, answer.quote?.error ?? answer.error ?? '');
+      if (attempt === 0 && state === 'declined') { failures.push({ take: 'story', error: 'card declined once: ' + JSON.stringify(answer).slice(0, 300) }); continue; }
+      take.sale = answer; break;
+    }
+    const receipt = page.getByTestId('receipt');
+    await receipt.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+    await holdOn(page, 'story', 'pay', startedAt, 6, receipt, repriced ? 'repriced first' : '');
+    const line = receipt.locator('.receipt-line').first(); await pointAt(page, line);
+    await hold(page, 'story', 'thread', startedAt, 4, await textOf(line));
+
+    const deadline = Date.now() + 75000;
+    while (Date.now() < deadline && !(await receipt.getByText(/Payment captured/).count())) {
+      await click(page, page.getByRole('button', { name: 'Refresh receipt', exact: true })).catch(async () => { await page.reload(); await ready(page); });
+      await receipt.getByText(/Payment captured/).waitFor({ timeout: 3000 }).catch(() => {});
+    }
+    await holdOn(page, 'story', 'events', startedAt, 4, receipt.locator('.receipt-event').first());
+
+    const receiptId = take.sale.quote?.id ?? take.sale.id;
+    const receiptData = await page.evaluate(async id => (await fetch(`/api/receipt/${encodeURIComponent(id)}`)).json(), receiptId);
+    const lamp = receiptData.lines.find(item => /lamp/i.test(item.title)) ?? receiptData.lines[0];
+    await click(page, page.getByTestId(`refund-${lamp.lineId}`));
+    const refundDeadline = Date.now() + 60000; let updated;
+    do {
+      updated = await (await page.request.get(new URL(`/api/receipt/${encodeURIComponent(receiptData.quote.id)}`, base).href)).json();
+      if (updated.lines.find(item => item.lineId === lamp.lineId)?.refund?.state === 'completed') break;
+      await page.waitForTimeout(1200);
+    } while (Date.now() < refundDeadline);
+    await page.reload(); await ready(page); await receipt.waitFor();
+    const returnedLine = receipt.locator('.receipt-line').filter({ hasText: 'Returned' }).first();
+    await returnedLine.waitFor({ state: 'visible' });
+    await holdOn(page, 'story', 'refund', startedAt, 5, returnedLine);
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500);
+    await hold(page, 'story', 'returned-room', startedAt, 4, await textOf(caption(page)));
+
+    const replace = page.getByTestId('replace-item').first();
+    if (await replace.count()) {
+      await click(page, replace);
+      const quote = page.getByTestId('replacement-quote'); await quote.waitFor({ timeout: 30000 });
+      await holdOn(page, 'story', 'replacement-quote', startedAt, 5, quote);
+      let checkout;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const checkoutResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/checkout' && response.request().method() === 'POST', { timeout: 60000 });
+        await click(page, page.getByTestId('pay'));
+        const answer = await checkoutResponse; checkout = await answer.json();
+        if (answer.status() !== 409 || checkout.code !== 'price_changed') break;
+        // The shop changed the price since the saved run: a new replacement quote takes it.
+        await holdOn(page, 'story', 'replacement-reprice', startedAt, 4, page.locator('#basket'));
+        const fresh = page.waitForResponse(response => new URL(response.url()).pathname === '/api/replace', { timeout: 30000 });
+        await click(page, page.getByTestId('replace-again')); await fresh; await quote.waitFor({ timeout: 30000 });
+      }
+      await approveBuyer(page, checkout.approveUrl, { email: process.env.BUYER_EMAIL, password: process.env.BUYER_PASSWORD });
+      await hold(page, 'story', 'paypal-page', startedAt, 3, await page.locator('body').innerText());
+      await ready(page);
+      const paid = page.getByTestId('replacement-receipt'); await paid.waitFor({ timeout: 60000 });
+      await holdOn(page, 'story', 'replacement-paid', startedAt, 5, paid);
+    }
+
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(400);
+    await holdOn(page, 'story', 'status', startedAt, 4, page.locator('#status'));
+  } catch (error) { failures.push({ take: 'story', error: String(error?.message ?? error) }); }
+  finally { await closeTake('story', take).catch(error => failures.push({ take: 'story', error: String(error?.message ?? error) })); }
+}
+// A second visitor's live design from one sentence (labelled as a separate design in the cut).
+async function briefTake() {
+  let take;
+  try {
+    take = await newTake('brief', { width: 1920, height: 1080 });
+    const { page, startedAt } = take;
+    await load(take);
+    const input = page.getByLabel('Tell RoomWeft about the room');
+    await pointAt(page, input); await input.fill('');
+    await input.pressSequentially('I read in the evening, under $700', { delay: 70 });
+    const t = (Date.now() - startedAt) / 1000;
+    beats.push({ take: 'brief', name: 'typed', t: t - 3, end: t, text: 'I read in the evening, under $700', box: await boxOf(input) });
+    const live = page.getByRole('button', { name: 'Search live', exact: true });
+    const response = page.waitForResponse(result => /\/api\/design$/.test(new URL(result.url()).pathname) && result.request().method() === 'POST', { timeout: 90000 });
+    const asked = (Date.now() - startedAt) / 1000;
+    await click(page, live); await response; await ready(page, 60000);
+    beats.push({ take: 'brief', name: 'wait', t: asked, end: (Date.now() - startedAt) / 1000, text: 'live design wait', box: null });
+    const box = page.getByTestId('brief-understood');
+    const details = box.locator('details').first();
+    if (await details.count()) await click(page, details.locator('summary'));
+    await holdOn(page, 'brief', 'understood', startedAt, 6, box);
+  } catch (error) { failures.push({ take: 'brief', error: String(error?.message ?? error) }); }
+  finally { await closeTake('brief', take).catch(error => failures.push({ take: 'brief', error: String(error?.message ?? error) })); }
+}
+
 try {
   browser = await launchBrowser();
+  if (only.includes('story')) await storyTake();
+  if (only.includes('brief')) await briefTake();
   if (only.includes('main')) await mainTake();
   if (only.includes('paypal')) await paypalTake();
   if (only.includes('phone')) await phoneTake();

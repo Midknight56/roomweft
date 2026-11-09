@@ -1,5 +1,5 @@
 import type { ApiError, DesignView, OwnedState, Placement, QuoteView, ReceiptView, RefundView, StatusView } from '../shared/api-types';
-import type { SlotId } from '../shared/room';
+import type { RoomSpec, SlotId } from '../shared/room';
 
 export class RequestError extends Error {
   constructor(message: string, public code: string, public status: number, public quote?: QuoteView, public design?: DesignView) { super(message); }
@@ -19,11 +19,13 @@ export const api = {
   // No scenes response shape is defined in the shared contract yet.
   scenes: (): Promise<unknown> => request('/api/scenes'),
   status: (): Promise<StatusView> => request('/api/status'),
-  design: (style: string, budget: number, owned: OwnedState[], live: boolean, brief?: string): Promise<DesignView> => request('/api/design', { style, budget: Math.round(budget / 100), owned, live, ...(live && brief ? { brief } : {}) }),
+  design: (style: string, budget: number, owned: OwnedState[], live: boolean, brief?: string, roomSpec?: RoomSpec): Promise<DesignView> => request('/api/design', { style, budget: Math.round(budget / 100), owned, live, ...(live && brief ? { brief } : {}), ...(roomSpec ? { roomSpec } : {}) }),
+  room: (designId: string, roomSpec: unknown): Promise<DesignView> => request('/api/room', { designId, roomSpec }),
   swap: (designId: string, slot: SlotId, productId: string): Promise<DesignView> => request(`/api/design/${id(designId)}/swap`, { slot, productId }),
   move: (designId: string, itemId: string, placement: Placement): Promise<DesignView> => request(`/api/design/${id(designId)}/move`, { itemId, ...placement }),
   quote: (design: DesignView): Promise<QuoteView> => request('/api/quote', { designId: design.id, version: design.version }),
   checkout: (quoteId: string, method: 'paypal' | 'card'): Promise<QuoteView | ReceiptView> => request('/api/checkout', { quoteId, method }),
   receipt: (quoteId: string): Promise<ReceiptView> => request(`/api/receipt/${id(quoteId)}`),
   refund: (quoteId: string, lineId: SlotId): Promise<RefundView> => request('/api/refund', { quoteId, lineId }),
+  replace: (quoteId: string, lineId: SlotId): Promise<{ quote: QuoteView; design: DesignView }> => request('/api/replace', { quoteId, lineId }),
 };

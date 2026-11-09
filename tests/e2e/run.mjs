@@ -8,6 +8,7 @@ async function step(number, title, action) {
   if (blocked) { console.log(`FAIL ${number}. ${title}: blocked by an earlier step.`); failures++; return; }
   try { await action(); console.log(`PASS ${number}. ${title}`); }
   catch (error) {
+    if (process.env.E2E_DEBUG) console.error(error);
     console.log(`FAIL ${number}. ${title}: ${error instanceof BuyerChallenge ? 'A person must complete the sandbox security challenge.' : 'Required state or control was not reached.'}`);
     failures++; blocked = true;
   }
@@ -15,6 +16,7 @@ async function step(number, title, action) {
 async function responseAfter(path, action) {
   const response = page.waitForResponse(response => new URL(response.url()).pathname === path && response.request().method() === 'POST');
   const [result] = await Promise.all([response, action()]);
+  if (!result.ok() && process.env.E2E_DEBUG) console.error(path, result.status(), await result.text());
   assert.ok(result.ok(), 'API request must succeed.'); return result.json();
 }
 async function freezeAndPay(beforePay) {
@@ -108,6 +110,33 @@ try {
   await step(6, 'Repeated refund returns the original refund', async () => {
     const response = await context.request.post(new URL('/api/refund', base).href, { data: { quoteId: quote.id, lineId: refund.lineId } });
     assert.ok(response.ok()); const repeated = await response.json(); assert.equal(repeated.id, refund.id); assert.equal(repeated.paypalId, receipt.lines.find(item => item.lineId === refund.lineId).refund.paypalId);
+  });
+  await step('6a', 'Replace the returned piece with a one piece quote paid by test card', async () => {
+    const returnedLine = receipt.lines.find(item => item.lineId === refund.lineId);
+    let answer, paid; let trigger = () => page.getByTestId('replace-item').first().click();
+    // A saved price older than six hours is checked with the shop first; a changed price asks for a new replacement quote.
+    // The sandbox also declines a test card now and then; a declined replacement leaves room for a fresh one.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      answer = await responseAfter('/api/replace', trigger);
+      assert.equal(answer.quote.lines.length, 1); assert.equal(answer.quote.lines[0].lineId, refund.lineId);
+      assert.notEqual(answer.quote.lines[0].productId, returnedLine.productId);
+      assert.deepEqual(answer.quote.replaces, { quoteId: quote.id, lineId: refund.lineId });
+      await page.getByTestId('replacement-quote').waitFor();
+      const response = page.waitForResponse(item => new URL(item.url()).pathname === '/api/checkout' && item.request().method() === 'POST');
+      await page.getByTestId('pay-card').click(); const checkout = await response; paid = await checkout.json();
+      if (checkout.status() === 409 && paid.code === 'price_changed') { await page.getByTestId('replace-again').waitFor(); trigger = () => page.getByTestId('replace-again').click(); continue; }
+      assert.ok(checkout.ok(), 'The replacement payment must answer.');
+      if (paid.quote.state === 'paid') break;
+      await page.getByTestId('open-first-receipt').click(); await page.getByTestId('replace-item').first().waitFor();
+      trigger = () => page.getByTestId('replace-item').first().click();
+    }
+    assert.equal(paid.quote.state, 'paid'); assert.equal(paid.lines.length, 1); assert.equal(paid.quote.replaces.quoteId, quote.id);
+    assert.equal(paid.capturedCents, answer.quote.totalCents);
+    await page.getByTestId('replacement-receipt').waitFor();
+    assert.ok((await page.getByTestId('replacement-receipt').innerText()).includes(quote.id.slice(0, 8)));
+    const first = await (await context.request.get(new URL(`/api/receipt/${quote.id}`, base).href)).json();
+    assert.deepEqual(first.lines, receipt.lines); assert.deepEqual(first.plan, receipt.plan);
+    assert.equal(first.replacements.find(item => item.lineId === refund.lineId).state, 'paid');
   });
   await step(7, 'Another visitor cannot open the receipt', async () => {
     const other = await browser.newContext();

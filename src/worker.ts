@@ -21,7 +21,8 @@ export function services(env: Env) {
   const checkout = new CheckoutService({ db: env.DB, paypal, designs: { get: async (id, visitor) => {
     try { return await designs.get(id, visitor); }
     catch (error) { if (error instanceof DesignError && error.code === 'not_found') return null; throw error; }
-  }, applyPrices: (id, visitor, repriced, version) => designs.applyPrices(id, visitor, repriced, version) }, returnUrl: new URL('/return', env.PUBLIC_ORIGIN).href, cancelUrl: new URL('/cancel', env.PUBLIC_ORIGIN).href });
+  }, applyPrices: (id, visitor, repriced, version) => designs.applyPrices(id, visitor, repriced, version),
+    replace: (id, visitor, slot, exclude) => designs.replace(id, visitor, slot, exclude) }, returnUrl: new URL('/return', env.PUBLIC_ORIGIN).href, cancelUrl: new URL('/cancel', env.PUBLIC_ORIGIN).href });
   const webhook = new CheckoutWebhook({ db: env.DB, paypal, checkout, webhookId: env.PAYPAL_WEBHOOK_ID ?? '' });
   return { channel3, ledger, designs, checkout, webhook, paypal };
 }
@@ -119,17 +120,18 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
   const receipt = /^\/api\/receipt\/([^/]+)$/.exec(path);
   if (get && receipt) return serviceResponse(await s.checkout.receipt(decodeURIComponent(receipt[1]), visitor));
   const designRoute = /^\/api\/design\/([^/]+)\/(swap|move|lock)$/.exec(path);
-  if (!post || (!designRoute && !['/api/design', '/api/quote', '/api/checkout', '/api/refund'].includes(path))) return errorResponse(404, 'not_found', 'This route was not found.');
+  if (!post || (!designRoute && !['/api/design', '/api/room', '/api/quote', '/api/checkout', '/api/refund', '/api/replace'].includes(path))) return errorResponse(404, 'not_found', 'This route was not found.');
   const body = await jsonBody(request);
   if (path === '/api/design') {
     if (typeof body.live !== 'boolean') throw new HttpError(400, 'invalid', 'Choose live or recorded products.');
     if (body.brief !== undefined && typeof body.brief !== 'string') throw new HttpError(400, 'invalid', 'Use words for the room brief.');
-    const design = await s.designs.createDesign({ brief: body.brief, style: stringField(body, 'style'), budget: numberField(body, 'budget'), owned: owned(body), live: body.live, visitorId: visitor });
+    const design = await s.designs.createDesign({ brief: body.brief, style: stringField(body, 'style'), budget: numberField(body, 'budget'), owned: owned(body), live: body.live, visitorId: visitor, ...(body.roomSpec !== undefined ? { roomSpec: body.roomSpec } : {}) });
     if (body.live && design.mode === 'recorded' && await remaining(env.DB, `design:${visitor}`, LIVE_DESIGNS_PER_DAY, now) === 0) {
       design.message = 'You have used all three live designs today. This is a recorded run.';
     }
     return Response.json(design);
   }
+  if (path === '/api/room') return Response.json(await s.designs.setRoom(stringField(body, 'designId'), visitor, body.roomSpec));
   if (designRoute) {
     const id = decodeURIComponent(designRoute[1]);
     if (designRoute[2] === 'swap') {
@@ -154,6 +156,13 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
     const prior = await env.DB.prepare('SELECT id FROM refunds WHERE quote_id = ? AND line_id = ?').bind(quoteId, JSON.stringify([quoteId, lineId])).first();
     if (!prior && !await takeCounter(env.DB, `refund:${visitor}`, REFUNDS_PER_DAY, now)) throw new HttpError(429, 'refund_cap', 'You have used all six refunds today. Please return tomorrow.');
     return serviceResponse(await s.checkout.refundLine(quoteId, lineId, visitor));
+  }
+  if (path === '/api/replace') {
+    const lineId = stringField(body, 'lineId');
+    if (!SLOTS.some(slot => slot.id === lineId)) throw new HttpError(400, 'invalid', 'Choose a known line.');
+    const result = await s.checkout.replaceLine(quoteId, lineId, visitor);
+    if (!result.ok) return serviceResponse(result);
+    return Response.json({ quote: result.value, design: await s.designs.get(result.value.designId, visitor) });
   }
   const method = body.method ?? 'paypal';
   if (method !== 'paypal' && method !== 'card') throw new HttpError(400, 'invalid', 'Choose a sandbox payment method.');

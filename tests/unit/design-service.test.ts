@@ -467,3 +467,52 @@ it('searches with each slot cap rounded down to dollars and keeps expensive alte
   expect(design.slots[0].pick?.id).toBe('small');
   expect(design.slots[0].alternates.map(a=>a.candidate.id)).toContain('large');
 });
+describe('measured rooms in the design service',()=>{
+  const spec=async()=> (await import('../../src/shared/room')).DEFAULT_ROOM_SPEC;
+  it('a 450 by 360 room clears the deep chair; a 300 by 280 room with the door near the corner blocks even the slim one',async()=>{
+    const {service,input}=fixture({ai:true});
+    const design=await service.createDesign(input);
+    expect(design.fit.doorSwing).toContain('reading-chair');
+    const big=await service.setRoom(design.id,'visitor',{...await spec(),width:450,depth:360});
+    expect(big.version).toBe(2);
+    expect(big.roomSpec).toMatchObject({width:450,depth:360});
+    expect(big.fit.doorSwing).not.toContain('reading-chair');
+    expect(big.fit.inside).toEqual([]);
+    expect(big.slots[0].placement).toMatchObject({x:446-50,z:4+45});
+    expect(big.owned.find(item=>item.id==='desk')).toMatchObject({x:450-10-60,z:360-5-30,locked:true});
+    expect(await service.get(design.id,'visitor')).toEqual(big);
+    const small=await service.setRoom(design.id,'visitor',{...await spec(),width:300,depth:280,door:{left:200,width:80}});
+    expect(small.version).toBe(3);
+    expect(small.fit.inside).toEqual([]);
+    expect(small.fit.doorSwing).toContain('reading-chair');
+    expect(small.slots[0].alternates.find(alt=>alt.candidate.id==='small')?.fit.passes).toBe(false);
+    for (const item of designLayout(small)) {
+      expect(item.x).toBeGreaterThan(0); expect(item.x).toBeLessThan(300); expect(item.z).toBeGreaterThan(0); expect(item.z).toBeLessThan(280);
+    }
+  });
+  it('a room change after a quote is frozen makes that quote stale',async()=>{
+    const {service,input,db}=fixture({ai:true});
+    let design=await service.createDesign(input);
+    design=await service.swap(design.id,'visitor','reading-chair','small');
+    expect(design.fit.passes).toBe(true);
+    const h=harness();
+    const checkout=new CheckoutService({...h.options,db:asD1(db),designs:service});
+    const quote=unwrap(await checkout.freezeQuote(design.id,design.version,'visitor'));
+    await service.setRoom(design.id,'visitor',{...await spec(),width:450,depth:360});
+    expect(await checkout.startCheckout(quote.id,'visitor')).toMatchObject({ok:false,code:'design_changed'});
+  });
+  it('refuses a bad room with its first error and keeps the design; a new design keeps a measured room',async()=>{
+    const {service,input}=fixture({ai:true});
+    const design=await service.createDesign(input);
+    await expect(service.setRoom(design.id,'visitor',{...await spec(),width:100})).rejects.toMatchObject({code:'invalid',message:'Use a width from 200 to 800 cm.'});
+    expect((await service.get(design.id,'visitor')).version).toBe(1);
+    await expect(service.setRoom(design.id,'other',await spec())).rejects.toMatchObject({code:'not_found'});
+    const {roomFromSpec}=await import('../../src/shared/room');
+    const measured={...await spec(),width:450,depth:360};
+    const owned=roomFromSpec(measured).ownedItems.map(i=>({id:i.id,x:i.x,z:i.z,rot:i.rot,locked:i.locked}));
+    const next=await service.createDesign({...input,owned,roomSpec:measured});
+    expect(next.roomSpec).toEqual(measured);
+    expect(next.fit.doorSwing).not.toContain('reading-chair');
+    await expect(service.createDesign({...input,roomSpec:measured})).rejects.toMatchObject({code:'invalid'});
+  });
+});

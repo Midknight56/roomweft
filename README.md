@@ -17,8 +17,10 @@ The 60 second path:
    room with W, A, S and D (on a phone, drag).
 3. Freeze the quote and press "Pay with the test card". Every receipt line is tied to an object in the room, and the
    receipt lists the PayPal webhook events that passed the signature check. Refund one item and watch the plan and the
-   receipt part ways.
+   receipt part ways. Then press "Replace this item": the new quote holds only the replacement, and the first receipt
+   stays as it was.
 4. Optional: type a sentence about the room and press "Search live" for a new design from live product search.
+5. Optional: under "Room size", enter your own room, door and furniture sizes and press Apply.
 
 What is real and what is not:
 
@@ -27,6 +29,7 @@ What is real and what is not:
 | Product search | Real Channel3 API calls. The page opens on one saved live run per style from 6 Nov 2026, labelled "Saved live run". "Search live" makes a new one (three a day per visitor). When a daily cap is spent, the page says so and uses the saved run |
 | Sizes | From the retailer listing through Channel3. A missing size is shown as "fit unverified", never guessed |
 | 3D furniture | Our own furniture models, scaled to the listed size when the listing gives a usable size, and coloured from the listing. Not the exact product |
+| Room | A 380 by 320 cm sample room opens first. You can enter your own width, depth, door place and width, and the sizes of your desk, desk chair and bookshelf. Rectangular rooms with one door on the south wall only |
 | Fit checks | Done in code: walls, overlaps, door swing, a 76 cm walkway, budget |
 | Room brief | Workers AI Granite 4.0 H Micro reads the renter's sentence into a style, a budget and search words from a fixed list. Code checks every field. A saved run shows the words it really searched with, labelled as saved |
 | Model picks | The same model picks a candidate per slot for taste and writes a short reason. Code checks every pick. Saved runs keep their recorded picks |
@@ -44,8 +47,8 @@ Run `npm run check:model` online to check the configured model page for deprecat
 | Fit checks (shared by the Worker and the page) | `src/shared/fit.ts` |
 | Product search and cache | `src/products/` |
 | Model pick and the daily neuron cap | `src/ai/` |
-| Design, swap, move | `src/design/` |
-| Quote, PayPal order, capture, refund, webhooks | `src/checkout/`, `src/paypal/` |
+| Design, swap, move, room size | `src/design/` |
+| Quote, PayPal order, capture, refund, replacement, webhooks | `src/checkout/`, `src/paypal/` |
 | Page and 3D room | `src/client/` |
 
 PayPal calls (sandbox only): `POST /v1/oauth2/token`, `POST /v2/checkout/orders` (intent CAPTURE, one item line per
@@ -53,7 +56,10 @@ room object; `payment_source.card` for the test card, `payment_source.paypal` fo
 `POST /v2/payments/captures/{id}/refund`, `GET /v2/payments/refunds/{id}`, `POST /v1/notifications/verify-webhook-signature`.
 Every payment and refund write carries a stable `PayPal-Request-Id`. The quote and the design version are frozen together: a changed room cannot
 be captured against an old quote. A price older than six hours is checked again with the shop before payment; if that check
-fails, no payment starts. A changed shop price is saved to the room so the next quote can pay.
+fails, no payment starts. A changed shop price is saved to the room so the next quote can pay. A refunded piece can be
+replaced with a new quote that holds only that piece, linked to the first receipt. A repeated request returns the same
+replacement quote, and the old refund marks only the old product as returned. Changing the room size raises the design
+version, so a quote for the old room cannot be paid.
 
 ## What it costs
 

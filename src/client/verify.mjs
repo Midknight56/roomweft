@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { CONTENT_SECURITY_POLICY } from '../http/response.ts';
 await mkdir('out/page-check', { recursive: true });
 const bundle = await build({ stdin: { contents: "export * from './src/shared/room'; export * from './src/shared/fit'; export * from './src/client/helpers';", resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'esm' });
-const { OWNED_ITEMS, ROOM, DOOR, WINDOW, STYLES, layoutOf, checkFit } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const { OWNED_ITEMS, ROOM, DOOR, WINDOW, STYLES, layoutOf, checkFit, roomFromSpec } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const sceneBundle = await build({ stdin: { contents: "export * from './src/client/scene'; export * from './src/client/meshes'; export { Box3, Vector3 } from 'three';", resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm' });
 const pick = (id, price, w, d, h) => ({ id, title: ({ 'reading-chair': 'Linen reading chair', 'floor-lamp': 'Warm paper floor lamp', 'side-table': 'Small oak side table', rug: 'Woven wool rug' })[id], priceCents: price, currency: 'USD', url: 'https://example.com/item', domain: 'example.com', colors: ['#B98764'], materials: ['Wood', 'Linen'], dims: { w, d, h } });
 const source = { query: 'small room', maxPrice: 30000, resultIds: ['chair'], retrievedAt: 1793952000000, cached: true, origin: 'recorded' };
@@ -18,7 +18,7 @@ function makeDesign(pass = false) {
   else { design.slots[0].pick.priceCents = 21000; design.totals.totalCents = 43000; design.swapNote = 'This chair clears the door and saves $40.00.'; }
   return design;
 }
-let lastDesignBody; let design = makeDesign(); let quote; let receipt; let moveRefused = false; let scenesFail = false; let unknown = false; let moves = 0;
+let lastDesignBody; const roomBodies = []; let design = makeDesign(); let quote; let receipt; let moveRefused = false; let scenesFail = false; let unknown = false; let moves = 0;
   let priceChange = false;
   let pageError; const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 try {
@@ -34,6 +34,11 @@ try {
     if (path === '/api/status') return json({ search: { live: true, remainingToday: 10 }, ai: { live: false, remainingNeuronsToday: 0 }, sandbox: { live: true }, visitor: { liveDesignsLeft: 3, checkoutsLeft: 6, refundsLeft: 6 } });
     if (path === '/api/design') { const body = request.postDataJSON(); lastDesignBody = body; assert.equal(body.style, 'calm-studio'); assert.equal(body.budget, 900); return json(design); }
     if (path.endsWith('/swap')) { design = makeDesign(true); return json(design); }
+    if (path === '/api/room') {
+      const body = request.postDataJSON(); roomBodies.push(body);
+      const owned = roomFromSpec(body.roomSpec).ownedItems.map(({ id, x, z, rot, locked }) => ({ id, x, z, rot, locked }));
+      design = { ...design, version: design.version + 1, roomSpec: body.roomSpec, owned }; return json(design);
+    }
     if (path.endsWith('/move')) { moves++; if (moveRefused) return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'locked', error: 'This move was refused by the server.' }) }); const body = request.postDataJSON(); design.slots.find(s => s.slot === body.itemId).placement = { x: body.x, z: body.z, rot: body.rot }; design.version++; return json(design); }
     if (path === '/api/quote') { quote = { id: 'review-quote', designId: design.id, designVersion: design.version, lines: design.slots.map(s => ({ lineId: s.slot, roomObjectId: s.slot, productId: s.pick.id, title: s.pick.title, priceCents: s.pick.priceCents, currency: 'USD', url: s.pick.url, domain: s.pick.domain, fitStatus: 'fits', source })), totalCents: design.totals.totalCents, state: 'open' }; return json(quote); }
     if (path === '/api/checkout') {
@@ -195,7 +200,7 @@ try {
   await page.evaluate(saved => sessionStorage.setItem('roomweft-payment-room', JSON.stringify(saved)), { quoteId: quote.id, design });
   await page.goto('http://room.test/?receipt=review-quote'); await page.getByText('Capture test-capture').waitFor(); await page.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor(); await page.getByRole('button', { name: 'Refund this item', exact: true }).first().click(); await page.getByText('Refund completed', { exact: true }).waitFor(); await page.getByText('Returned', { exact: true }).waitFor();
   await page.reload(); await page.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor(); await page.getByText('Returned', { exact: true }).waitFor();
-  assert.equal(await page.getByText('The room plan and the receipt now differ. Freeze a new quote to buy a replacement.').count(), 1);
+  assert.equal(await page.getByText('The room plan and the receipt now differ. Replace the returned piece with a one piece quote.').count(), 1);
   for (const [state, message] of Object.entries({ cancelled: 'Payment was cancelled.', declined: 'Payment was declined.', stale: 'The design changed. Freeze a new quote.', changed: 'The design changed. Freeze a new quote.' })) {
     await page.goto(`http://room.test/?receipt=review-quote&checkout=${state}`);
     await page.locator('#panel > div').first().locator('.notice').filter({ hasText: message }).waitFor();
@@ -291,5 +296,31 @@ try {
   await page.getByTestId('freeze-quote').click(); await page.getByText('Frozen total $440.00').waitFor();
   await page.getByTestId('pay-card').click(); await page.getByText('Capture card-capture').waitFor();
   scenesFail = true; await page.goto('http://room.test/'); await page.getByRole('button', { name: 'Retry', exact: true }).waitFor(); scenesFail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click(); await page.getByRole('heading', { name: 'Your room' }).waitFor();
-  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['summary visible and fix button focus at 1440 and 390', 'saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport); design = makeDesign(true); roomBodies.length = 0;
+    await page.goto('http://room.test/'); await page.waitForFunction(() => window.__roomweftReady === true);
+    await page.getByRole('button', { name: 'Plan view', exact: true }).click(); await page.waitForTimeout(400);
+    const before = await page.getByTestId('plan-floor').boundingBox();
+    assert.ok(Math.abs(before.width / before.height - 380 / 320) < .03, `sample plan is 380 by 320 at ${viewport.width}`);
+    assert.equal(await page.getByTestId('room-size').isVisible(), true);
+    await page.getByTestId('room-width').fill('150'); await page.getByTestId('room-apply').click();
+    await page.locator('#room-field-width-error').waitFor();
+    assert.equal(await page.locator('#room-field-width-error').innerText(), 'Use a width from 200 to 800 cm.');
+    assert.equal(await page.locator('#room-field-width-error').getAttribute('data-testid'), 'room-error');
+    assert.equal(roomBodies.length, 0, 'a bad width is not sent');
+    await page.getByTestId('room-width').fill('300'); await page.getByTestId('room-depth').fill('280'); await page.getByTestId('door-left').fill('140');
+    const answer = page.waitForResponse(response => new URL(response.url()).pathname === '/api/room');
+    await page.getByTestId('room-apply').click(); await answer;
+    await page.waitForFunction(() => window.__roomweftReady === true); await page.waitForTimeout(500);
+    assert.deepEqual(roomBodies.at(-1).roomSpec, { width: 300, depth: 280, door: { left: 140, width: 80 }, owned: { desk: { w: 120, d: 60, h: 75 }, deskChair: { w: 55, d: 55, h: 90 }, bookshelf: { w: 80, d: 30, h: 180 } } });
+    const after = await page.getByTestId('plan-floor').boundingBox();
+    assert.ok(Math.abs(after.width / after.height - 300 / 280) < .03, `plan redraws to 300 by 280 at ${viewport.width}: ${after.width}x${after.height}`);
+    assert.equal(await page.getByTestId('room-width').inputValue(), '300');
+    assert.equal(await page.getByTestId('room-dimensions').innerText(), '300 x 280 cm');
+    assert.equal(await page.getByTestId('room-error').count(), 0);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${viewport.width}px has no sideways scroll after a room change`);
+    await page.screenshot({ path: `out/page-check/room-size-${viewport.width}.png` });
+    await page.getByTestId('room-size').screenshot({ path: `out/page-check/room-size-box-${viewport.width}.png` });
+  }
+  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['room size applies 300 by 280, refuses a bad width and redraws the plan at 1440 and 390', 'summary visible and fix button focus at 1440 and 390', 'saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
 } finally { await browser.close(); }

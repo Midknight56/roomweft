@@ -171,3 +171,14 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .brief-box details{margin-top:8px}
 .brief-box details summary{font-size:13px;font-weight:500;padding:4px 0;min-height:28px;cursor:pointer;color:var(--thread)}
 .brief-box small{display:block;margin-top:5px;overflow-wrap:anywhere}
+
+.room-size { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 10px; }
+.room-size h3 { margin: 0; font-size: 1rem; }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 12px; align-items: end; }
+.room-grid > strong { grid-column: 1 / -1; }
+.room-field { display: grid; gap: 4px; min-width: 0; }
+.room-field input { width: 100%; box-sizing: border-box; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font-size: 16px; }
+.room-field input[aria-invalid=true] { border-color: var(--alarm); }
+.room-field small { line-height: 1.3; }
+.furniture-sizes { display: grid; gap: 10px; }
+.furniture-sizes[open] > .room-grid { margin-top: 8px; }

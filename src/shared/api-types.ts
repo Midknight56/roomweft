@@ -1,7 +1,7 @@
 // The JSON shapes of every route. The Worker, the design service, the checkout service and the page all use these.
 // Money is integer cents. Lengths are cm.
 import type { FitReport, Rotation } from "./fit";
-import type { Dimensions, SlotId } from "./room";
+import type { Dimensions, RoomSpec, SlotId } from "./room";
 
 export interface SourceRecord {
   query: string;
@@ -73,6 +73,8 @@ export interface DesignView {
   capturedAt?: string;
   swapNote?: string;
   message?: string;
+  /** The measured room. Missing on designs saved before measured rooms: they use DEFAULT_ROOM_SPEC. */
+  roomSpec?: RoomSpec;
 }
 
 export interface QuoteLine {
@@ -102,6 +104,8 @@ export interface QuoteView {
   error?: string;
   /** Lines whose price changed on recheck, when state is stale. */
   repriced?: { lineId: SlotId; oldCents: number; newCents: number | null }[];
+  /** Set on a replacement quote: the earlier receipt and the refunded line it replaces. */
+  replaces?: { quoteId: string; lineId: SlotId };
 }
 
 export type RefundState = "requesting" | "pending" | "completed" | "failed" | "unknown";
@@ -123,7 +127,9 @@ export interface ReceiptView {
   refundedCents: number;
   lines: (QuoteLine & { refund: { state: RefundState; amountCents: number; paypalId: string | null } | null })[];
   /** Room objects and how the plan stands against the receipt. */
-  plan: { roomObjectId: string; status: "paid" | "returned" }[];
+  plan: { roomObjectId: string; productId: string; status: "paid" | "returned" }[];
+  /** Live replacement quotes made for refunded lines of this receipt. */
+  replacements?: { lineId: SlotId; quoteId: string; state: QuoteState }[];
   events: { type: string; receivedAt: number }[];
   recorded?: boolean;
   amountMismatch?: boolean;

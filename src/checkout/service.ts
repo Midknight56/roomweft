@@ -1,4 +1,5 @@
 import type { Candidate, DesignView, QuoteLine, QuoteState, QuoteView, ReceiptView, RefundState, RefundView, SlotView } from "../shared/api-types";
+import type { SlotId } from "../shared/room";
 import { SANDBOX_TEST_CARD } from "../paypal/client";
 import type { PayPalGateway, PayPalResource, PayPalResult } from "../paypal/client";
 
@@ -13,6 +14,8 @@ export interface DesignSnapshot {
 export interface DesignReader {
   get(designId: string, visitor: string): Promise<DesignSnapshot | null>;
   applyPrices(designId: string, visitor: string, repriced: NonNullable<QuoteView['repriced']>, expectedVersion?: number): Promise<DesignView>;
+  /** Puts another piece that passes the checks in the slot (not the excluded product). Null when none passes. */
+  replace?(designId: string, visitor: string, slot: SlotId, excludeProductId: string): Promise<DesignSnapshot | null>;
 }
 export type CheckoutResult<T> = { ok: true; value: T; code?: "already_started" }
   | { ok: false; code: string; error: string; quote?: QuoteView; design?: DesignView };
@@ -36,6 +39,7 @@ interface QuoteRow {
   captured_cents: number | null; refunded_cents: number; attempt: number; error: string | null;
   payment_method: "paypal" | "card";
   approve_url: string | null; repriced: string | null;
+  replaces_quote_id?: string | null; replaces_line_id?: string | null;
 }
 interface RefundRow {
   id: string; quote_id: string; line_id: string; amount_cents: number; state: RefundState; paypal_id: string | null;
@@ -72,6 +76,22 @@ export async function quoteHash(lines: readonly QuoteLine[], version: number): P
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function quoteLines(design: DesignSnapshot, slots: DesignSnapshot["slots"]): QuoteLine[] | null {
+  const lines: QuoteLine[] = [];
+  for (const slot of slots) {
+    if (!slot.pick) continue;
+    const pick = slot.pick;
+    if (pick.currency !== "USD" || !Number.isSafeInteger(pick.priceCents) || pick.priceCents < 0) return null;
+    lines.push({
+      lineId: slot.slot, roomObjectId: slot.slot, productId: pick.id, title: pick.title.slice(0, 120),
+      priceCents: pick.priceCents, currency: "USD", url: pick.url, domain: pick.domain,
+      fitStatus: design.fit.unverified.includes(slot.slot) ? "unverified" : "fits", source: slot.source,
+    });
+  }
+  return lines;
+}
+const DEAD = "('stale','superseded','declined')";
+
 export class CheckoutService {
   private readonly db: D1Database;
   private readonly paypal: PayPalGateway;
@@ -95,6 +115,7 @@ export class CheckoutService {
       lines: JSON.parse(row.lines) as QuoteLine[], totalCents: row.total_cents, state: row.state,
       ...(row.approve_url ? { approveUrl: row.approve_url } : {}), ...(row.error ? { error: row.error } : {}),
       ...(row.repriced ? { repriced: JSON.parse(row.repriced) as QuoteView["repriced"] } : {}),
+      ...(row.replaces_quote_id && row.replaces_line_id ? { replaces: { quoteId: row.replaces_quote_id, lineId: row.replaces_line_id as SlotId } } : {}),
     };
   }
   private async current(id: string): Promise<QuoteView> { return this.view((await this.row(id))!); }
@@ -104,19 +125,8 @@ export class CheckoutService {
     if (!design) return notFound();
     if (design.version !== version) return failure("design_changed", "Your room changed. Please make a new quote.");
     if (!design.fit.passes) return failure("fit_failed", "Fix the room checks before checkout.");
-    const lines: QuoteLine[] = [];
-    for (const slot of design.slots) {
-      if (!slot.pick) continue;
-      const pick = slot.pick;
-      if (pick.currency !== "USD" || !Number.isSafeInteger(pick.priceCents) || pick.priceCents < 0) {
-        return failure("invalid_price", "Every item needs a price in USD cents.");
-      }
-      lines.push({
-        lineId: slot.slot, roomObjectId: slot.slot, productId: pick.id, title: pick.title.slice(0, 120),
-        priceCents: pick.priceCents, currency: "USD", url: pick.url, domain: pick.domain,
-        fitStatus: design.fit.unverified.includes(slot.slot) ? "unverified" : "fits", source: slot.source,
-      });
-    }
+    const lines = quoteLines(design, design.slots);
+    if (!lines) return failure("invalid_price", "Every item needs a price in USD cents.");
     if (!lines.length) return failure("empty_basket", "Pick at least one item before checkout.");
     lines.sort((a, b) => a.lineId < b.lineId ? -1 : a.lineId > b.lineId ? 1 : 0);
     const total = lines.reduce((sum, line) => sum + line.priceCents, 0);
@@ -130,6 +140,44 @@ export class CheckoutService {
         VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, 'open', ?, ?)`).bind(id, visitor, designId, version, JSON.stringify(lines), total, await quoteHash(lines, version), now, now),
     ]);
     return success(await this.current(id));
+  }
+
+  /**
+   * Freezes a quote that holds only a replacement for one refunded line. The kept pieces are not charged again.
+   * A repeated request returns the live replacement; one that went stale is frozen again from the current room.
+   */
+  async replaceLine(quoteId: string, lineId: string, visitor: string): Promise<CheckoutResult<QuoteView>> {
+    const original = await this.owned(quoteId, visitor);
+    if (!original) return notFound();
+    const live = await this.liveReplacement(quoteId, lineId);
+    if (live) return success(this.view(live));
+    const refund = await this.db.prepare("SELECT state FROM refunds WHERE quote_id = ? AND line_id = ?")
+      .bind(quoteId, refundKey(quoteId, lineId)).first<{ state: RefundState }>();
+    if (refund?.state !== "completed") return failure("not_returned", "Only a returned piece can be replaced.");
+    const line = this.view(original).lines.find(item => item.lineId === lineId);
+    if (!line) return notFound();
+    if (!this.options.designs.replace) return failure("unavailable", "Replacements are unavailable.");
+    const design = await this.options.designs.replace(original.design_id, visitor, line.lineId, line.productId);
+    const slot = design?.slots.find(item => item.slot === line.lineId);
+    if (!design || !slot?.pick || slot.pick.id === line.productId) return failure("no_fit", "No other piece fits this spot right now.");
+    if (!design.fit.passes) return failure("fit_failed", "Fix the room checks before checkout.");
+    const lines = quoteLines(design, [slot]);
+    if (!lines?.length || lines[0].priceCents <= 0) return failure("invalid_price", "The replacement needs a price above zero.");
+    const id = this.ids();
+    const now = this.clock();
+    await this.db.batch([
+      this.db.prepare("UPDATE quotes SET state = 'superseded', updated_at = ? WHERE design_id = ? AND visitor = ? AND state = 'open'").bind(now, original.design_id, visitor),
+      this.db.prepare("UPDATE quotes SET state = 'superseded', error = ?, updated_at = ? WHERE design_id = ? AND visitor = ? AND state = 'approving'").bind("A newer quote replaced this one.", now, original.design_id, visitor),
+      this.db.prepare(`INSERT OR IGNORE INTO quotes (id, visitor, design_id, design_version, lines, total_cents, currency, hash, state, created_at, updated_at, replaces_quote_id, replaces_line_id)
+        VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, 'open', ?, ?, ?, ?)`).bind(id, visitor, original.design_id, design.version, JSON.stringify(lines),
+        lines[0].priceCents, await quoteHash(lines, design.version), now, now, quoteId, lineId),
+    ]);
+    const stored = await this.liveReplacement(quoteId, lineId);
+    return stored ? success(this.view(stored)) : failure("checking_payment", "Please try again.");
+  }
+  private liveReplacement(quoteId: string, lineId: string): Promise<QuoteRow | null> {
+    return this.db.prepare(`SELECT * FROM quotes WHERE replaces_quote_id = ? AND replaces_line_id = ? AND state NOT IN ${DEAD} ORDER BY created_at DESC LIMIT 1`)
+      .bind(quoteId, lineId).first<QuoteRow>();
   }
 
   async startCheckout(quoteId: string, visitor: string, opts: CheckoutOptions = {}): Promise<CheckoutResult<QuoteView>> {
@@ -441,10 +489,13 @@ export class CheckoutService {
       "SELECT type, received_at FROM webhook_events WHERE custom_id = ? ORDER BY received_at ASC LIMIT 10"
     ).bind(`roomweft:${quote.id}`).all<{ type: string; received_at: number }>();
     const events = eventRows.results.map(row => ({ type: row.type, receivedAt: row.received_at }));
+    const replacements = await this.db.prepare(`SELECT id, replaces_line_id, state FROM quotes WHERE replaces_quote_id = ? AND state NOT IN ${DEAD} ORDER BY created_at`)
+      .bind(quote.id).all<{ id: string; replaces_line_id: string; state: QuoteState }>();
     return { quote: quoteView, orderId: quote.order_id, captureId: quote.capture_id,
       capturedCents: quote.captured_cents ?? 0, refundedCents: quote.refunded_cents, lines,
-      plan: quote.state === "paid" ? lines.map(line => ({ roomObjectId: line.roomObjectId, status: line.refund?.state === "completed" ? "returned" : "paid" })) : [],
+      plan: quote.state === "paid" ? lines.map(line => ({ roomObjectId: line.roomObjectId, productId: line.productId, status: line.refund?.state === "completed" ? "returned" : "paid" })) : [],
       events,
+      ...(replacements.results.length ? { replacements: replacements.results.map(row => ({ lineId: row.replaces_line_id as SlotId, quoteId: row.id, state: row.state })) } : {}),
       ...(quote.error?.startsWith("amount_mismatch") ? { amountMismatch: true } : {}),
     };
   }
