@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { checkFit, footprintBounds, moveItem } from '../shared/fit';
+import { evaluateDesignFit, footprintBounds, moveItem } from '../shared/fit';
 import type { Placement } from '../shared/api-types';
-import { DOOR, ROOM, WINDOW } from '../shared/room';
+import { ROOM } from '../shared/room';
 import { collides, isDesktopWidth, layoutOf, rotate, snap } from './helpers';
 import type { RoomScene, Mode } from './scene';
 import { walkStart } from './walk-start';
@@ -96,7 +96,13 @@ export function controls(view: RoomScene, move: (id: string, placement: Placemen
   let yaw = view.walk.rotation.y; let pitch = 0;
   function preview(): void {
     for (const item of view.layout) { const object = view.objects.get(item.id); if (object) { object.position.set(item.x, 0, item.z); object.rotation.y = item.rot * Math.PI / 180; } }
-    if (view.design) view.showFit(checkFit(view.layout, ROOM, DOOR, WINDOW, { prices: Object.fromEntries(view.design.slots.map(slot => [slot.slot, slot.pick?.priceCents ?? 0])), budget: view.design.budgetCents }));
+    if (view.design) {
+      view.showFit(evaluateDesignFit(view.layout, {
+        prices: Object.fromEntries(view.design.slots.map(slot => [slot.slot, slot.pick?.priceCents ?? 0])),
+        budget: view.design.budgetCents,
+        unavailable: view.design.slots.filter(slot => slot.unavailable).map(slot => slot.slot),
+      }));
+    }
   }
   async function drop(): Promise<void> {
     if (!drag) return;

@@ -9,9 +9,11 @@ import unittest
 
 from tools.film.cut import (
     PlanValidationError,
+    build_video_filtergraph,
     calculate_segment_duration,
     cut_film,
     escape_caption,
+    read_frame_size,
     read_length,
     validate_plan,
 )
@@ -362,6 +364,245 @@ class TestFilmCut(unittest.TestCase):
             cut_film(plan_path, out_mp4, any_length=True)
             self.assertTrue(os.path.exists(out_mp4))
             self.assertAlmostEqual(read_length(out_mp4), 2.0, delta=0.2)
+
+    def test_crop_segment_exports_at_1920x1080(self) -> None:
+        """A crop segment exports at 1920 x 1080."""
+        with tempfile.TemporaryDirectory() as td:
+            clip_path = os.path.join(td, "source.mp4")
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "testsrc=duration=1:size=1920x1080:rate=30",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    clip_path,
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            plan_path = os.path.join(td, "plan.json")
+            out_mp4 = os.path.join(td, "out.mp4")
+            plan_data = {
+                "takes": {"main": clip_path},
+                "segments": [
+                    {
+                        "take": "main",
+                        "in": 0.0,
+                        "out": 1.0,
+                        "speed": 1.0,
+                        "crop": {"x": 1100, "y": 300, "w": 800, "h": 450},
+                    }
+                ],
+                "captions": [],
+                "clicks": [],
+            }
+            with open(plan_path, "w", encoding="utf-8") as f:
+                json.dump(plan_data, f)
+
+            cut_film(plan_path, out_mp4, any_length=True)
+            self.assertTrue(os.path.exists(out_mp4))
+            w, h = read_frame_size(out_mp4)
+            self.assertEqual((w, h), (1920, 1080))
+
+            # Test square crop padding
+            plan_pad_path = os.path.join(td, "plan_pad.json")
+            out_pad_mp4 = os.path.join(td, "out_pad.mp4")
+            plan_pad_data = {
+                "takes": {"main": clip_path},
+                "segments": [
+                    {
+                        "take": "main",
+                        "in": 0.0,
+                        "out": 1.0,
+                        "speed": 1.0,
+                        "crop": {"x": 500, "y": 200, "w": 600, "h": 600},
+                    }
+                ],
+                "captions": [],
+                "clicks": [],
+            }
+            with open(plan_pad_path, "w", encoding="utf-8") as f:
+                json.dump(plan_pad_data, f)
+
+            cut_film(plan_pad_path, out_pad_mp4, any_length=True)
+            self.assertTrue(os.path.exists(out_pad_mp4))
+            w_pad, h_pad = read_frame_size(out_pad_mp4)
+            self.assertEqual((w_pad, h_pad), (1920, 1080))
+
+    def test_crop_outside_frame_refused(self) -> None:
+        """A crop outside the frame is refused."""
+        with tempfile.TemporaryDirectory() as td:
+            clip_path = os.path.join(td, "clip.mp4")
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "testsrc=duration=1:size=1920x1080:rate=30",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    clip_path,
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            # Crop width exceeds frame bounds
+            plan_wide = {
+                "takes": {"main": clip_path},
+                "segments": [
+                    {
+                        "take": "main",
+                        "in": 0.0,
+                        "out": 1.0,
+                        "crop": {"x": 1500, "y": 300, "w": 800, "h": 450},
+                    }
+                ],
+                "captions": [],
+            }
+            with self.assertRaises(PlanValidationError):
+                validate_plan(plan_wide, td, any_length=True)
+
+            # Crop with negative coordinate
+            plan_neg = {
+                "takes": {"main": clip_path},
+                "segments": [
+                    {
+                        "take": "main",
+                        "in": 0.0,
+                        "out": 1.0,
+                        "crop": {"x": -10, "y": 300, "w": 800, "h": 450},
+                    }
+                ],
+                "captions": [],
+            }
+            with self.assertRaises(PlanValidationError):
+                validate_plan(plan_neg, td, any_length=True)
+
+            # CLI exits with code 1 and prints reason
+            plan_path = os.path.join(td, "bad_crop.json")
+            with open(plan_path, "w", encoding="utf-8") as f:
+                json.dump(plan_wide, f)
+            out_mp4 = os.path.join(td, "bad.mp4")
+            cut_py = os.path.join("tools", "film", "cut.py")
+            res = subprocess.run(
+                [sys.executable, cut_py, plan_path, out_mp4, "--any-length"],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("outside take frame size", res.stderr)
+
+    def test_too_small_crop_refused(self) -> None:
+        """A too small crop is refused."""
+        with tempfile.TemporaryDirectory() as td:
+            clip_path = os.path.join(td, "clip.mp4")
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "testsrc=duration=1:size=1920x1080:rate=30",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    clip_path,
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            # Width smaller than 320
+            plan_w = {
+                "takes": {"main": clip_path},
+                "segments": [
+                    {
+                        "take": "main",
+                        "in": 0.0,
+                        "out": 1.0,
+                        "crop": {"x": 100, "y": 100, "w": 319, "h": 200},
+                    }
+                ],
+                "captions": [],
+            }
+            with self.assertRaises(PlanValidationError):
+                validate_plan(plan_w, td, any_length=True)
+
+            # Height smaller than 180
+            plan_h = {
+                "takes": {"main": clip_path},
+                "segments": [
+                    {
+                        "take": "main",
+                        "in": 0.0,
+                        "out": 1.0,
+                        "crop": {"x": 100, "y": 100, "w": 400, "h": 179},
+                    }
+                ],
+                "captions": [],
+            }
+            with self.assertRaises(PlanValidationError):
+                validate_plan(plan_h, td, any_length=True)
+
+            # CLI exits with code 1 and prints reason
+            plan_path = os.path.join(td, "small_crop.json")
+            with open(plan_path, "w", encoding="utf-8") as f:
+                json.dump(plan_w, f)
+            out_mp4 = os.path.join(td, "small.mp4")
+            cut_py = os.path.join("tools", "film", "cut.py")
+            res = subprocess.run(
+                [sys.executable, cut_py, plan_path, out_mp4, "--any-length"],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("smaller than 320x180", res.stderr)
+
+    def test_label_hold_changes_drawtext_enable_window(self) -> None:
+        """Field labelHold changes the drawtext enable window."""
+        plan = {
+            "takes": {"main": "fake.mp4"},
+            "segments": [
+                {
+                    "take": "main",
+                    "in": 0.0,
+                    "out": 5.0,
+                    "speed": 1.0,
+                    "label": "Same room, a second basket",
+                    "labelHold": 3.5,
+                },
+                {
+                    "take": "main",
+                    "in": 5.0,
+                    "out": 10.0,
+                    "speed": 1.0,
+                    "label": "Wait removed",
+                },
+            ],
+            "captions": [],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            filtergraph, _ = build_video_filtergraph(
+                plan, {"main": 0}, td, "segoeui.ttf"
+            )
+        self.assertIn("enable=lte(t\\,3.5)", filtergraph)
+        self.assertIn("enable=lte(t\\,1.5)", filtergraph)
+        self.assertIn("Same room\\, a second basket", filtergraph)
+        self.assertIn("Wait removed", filtergraph)
 
 
 if __name__ == "__main__":

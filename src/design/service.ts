@@ -1,5 +1,5 @@
 import type { Candidate, DesignView, OwnedState, Placement, QuoteView, SlotView } from '../shared/api-types';
-import { checkFit, doorTight, footprintBounds, moveItem, type Footprint, type Rotation } from '../shared/fit';
+import { checkFit, doorTight, evaluateDesignFit, footprintBounds, moveItem, type Footprint, type Rotation } from '../shared/fit';
 import { DOOR, NOMINAL_DIMS, OWNED_ITEMS, ROOM, SLOTS, STYLES, WINDOW, slotCapCents, placeAtAnchor, type SlotId } from '../shared/room';
 import { takeCounter, withSlotDims, type SearchResult } from '../products/channel3';
 import { pick, validatePicks, type CandidateLists, type PickBinding } from '../ai/pick';
@@ -35,19 +35,11 @@ export function designLayout(design: DesignView): Footprint[] {
 }
 function fitDesign(design: DesignView): DesignView['fit'] {
   const layout = designLayout(design);
-  // Unknown dimensions cannot be geometric obstacles. Keep them explicitly unverified.
-  const fit = checkFit(layout.filter(p=>p.dims==='verified'),ROOM,DOOR,WINDOW,
-    {prices:Object.fromEntries(design.slots.map(s=>[s.slot,s.pick?.priceCents ?? 0])),budget:design.budgetCents});
-  const total = design.slots.reduce((n,s)=>n+(s.pick?.priceCents ?? 0),0);
-  fit.budget = {total,budget:design.budgetCents,over:Math.max(0,total-design.budgetCents)};
-  fit.unverified = layout.filter(p=>p.dims==='unverified').map(p=>p.id);
-  fit.messages = fit.messages.filter(m=>!m.startsWith('The basket is over budget'));
-  if (fit.budget.over) fit.messages.push(`The basket is over budget by $${(fit.budget.over/100).toFixed(2)}.`);
-  for (const id of fit.unverified) fit.messages.push(`The ${SLOTS.find(s=>s.id===id)!.label} has unverified dimensions.`);
-  const unavailable = design.slots.filter(slot=>slot.unavailable);
-  for (const slot of unavailable) fit.messages.push(`${SLOTS.find(s=>s.id===slot.slot)!.label}: No longer available at this shop. Swap for another.`);
-  fit.passes = fit.passes && fit.budget.over === 0 && unavailable.length === 0;
-  return fit;
+  return evaluateDesignFit(layout, {
+    prices: Object.fromEntries(design.slots.map(s => [s.slot, s.pick?.priceCents ?? 0])),
+    budget: design.budgetCents,
+    unavailable: design.slots.filter(slot => slot.unavailable).map(slot => slot.slot),
+  });
 }
 function placementFor(design: DesignView, slot: SlotView, candidate: Candidate): Placement {
   const placed = designLayout(design).filter(p=>p.id!==slot.slot);
@@ -159,6 +151,11 @@ export class DesignService {
       slot.by=!slot.pick ? 'none' : slot.source?.origin==='recorded' ? 'recorded' : chosen?.by ?? 'rules';
       slot.reason=slot.pick ? chosen?.reason ?? rulesReason(style,budget*100,slot.slot,slot.pick) : 'No product is available.';
       slot.alternates=lists[slot.slot].filter(c=>c.id!==slot.pick?.id).map(candidate=>({candidate,verified:candidate.dims!==null,fit:{passes:false,messages:[]},priceDeltaCents:0}));
+      if (!slot.pick && lists[slot.slot].length) {
+        const cap = slotCapCents(budget * 100, slot.slot);
+        const money = `$${Number((cap / 100).toFixed(2))}`;
+        slot.note = `Nothing under the ${money} share for this piece. Raise the budget or swap.`;
+      }
     }
     const design: DesignView={id:(this.options.id ?? (()=>crypto.randomUUID()))(),version:1,mode:!hasLive?'recorded':response?.ok && response.picks.some(p=>p.by==='ai')?'live':'rules',
       brief,style:style.id,budgetCents:budget*100,owned:input.owned.map(i=>({...i})),slots,
@@ -208,7 +205,8 @@ export class DesignService {
     const candidate=candidates.find(c=>c.id===productId);
     if (!candidate) return invalid('Choose a product from this slot.');
     const difference=candidate.priceCents-(slot.pick?.priceCents ?? 0);
-    if (slot.unavailable) { delete slot.unavailable; delete slot.note; }
+    if (slot.unavailable) delete slot.unavailable;
+    delete slot.note;
     const openingCm = DOOR.opening.maxX - DOOR.opening.minX;
     const wasTight = slotId !== 'rug' && Boolean(doorTight(slot.pick?.dims, openingCm));
     placeCandidate(design,slot,candidate); slot.by='rules';

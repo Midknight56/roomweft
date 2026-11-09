@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PayPalClient } from '../../src/paypal/client';
 import worker, { createWorker, services, recheckPrices } from '../../src/worker';
 import type { Env } from '../../src/env';
 import type { DesignView, QuoteLine, QuoteView, ReceiptView } from '../../src/shared/api-types';
@@ -224,14 +225,42 @@ describe('worker price rechecks', () => {
     const product = vi.fn().mockResolvedValueOnce({ ok: true, candidates: [{ id: 'chair', priceCents: 101 }] }).mockResolvedValueOnce({ ok: true, candidates: [] });
     expect(await recheckPrices([line, { ...line, lineId: 'rug', productId: 'rug', source: null }], { product }, at + PRICE_MAX_AGE + 1)).toEqual({ checked: [{ lineId: 'reading-chair', priceCents: 101 }, { lineId: 'rug', priceCents: null }], failed: false });
   });
-  it('persists and returns the failed recheck notice on a quote', async () => {
-    const { call, db, s } = fixture(); seedQuote(db);
-    vi.spyOn(s.channel3, 'product').mockResolvedValue({ ok: false, reason: 'capped' });
-    vi.spyOn(s.checkout, 'startCheckout').mockImplementation(async (_id, _visitor, options) => {
-      await options?.recheck?.([{ ...line, source: null }]); return { ok: true, value: { ...quote, state: 'approving' } };
+  it('returns 503 price_unchecked when a recheck fails and creates no paypal order, but pays with a fresh price', async () => {
+    const { call, db, s } = fixture();
+    const createOrder = vi.spyOn(PayPalClient.prototype, 'createOrder').mockResolvedValue({
+      ok: true, status: 201, body: { id: 'order-1', links: [{ rel: 'approve', href: 'https://approve.test/order-1' }] }
     });
-    expect(await (await call('/api/checkout', { quoteId: 'quote' })).json()).toHaveProperty('error', 'Price not rechecked.');
-    expect(db.sqlite.prepare("SELECT error FROM quotes WHERE id='quote'").get()).toMatchObject({ error: 'Price not rechecked.' });
+    const staleLine: QuoteLine = {
+      ...line,
+      source: { ...line.source!, retrievedAt: at - PRICE_MAX_AGE - 1000 },
+    };
+    db.sqlite.prepare(`INSERT INTO quotes(id, visitor, design_id, design_version, lines, total_cents, currency, hash, state, created_at, updated_at)
+      VALUES ('quote-stale', ?, 'design', 1, ?, 100, 'USD', 'hash', 'open', ?, ?)`).run(visitor, JSON.stringify([staleLine]), at, at);
+    db.sqlite.prepare(`INSERT INTO designs(id, visitor, version, body, created_at, updated_at)
+      VALUES ('design', ?, 1, ?, ?, ?)`).run(visitor, JSON.stringify({
+        id: 'design', version: 1, fit: { passes: true, unverified: [] }, slots: [{ slot: 'reading-chair', pick: staleLine, placement: { x: 0, z: 0, rot: 0 } }]
+      }), at, at);
+    vi.spyOn(s.channel3, 'product').mockResolvedValue({ ok: false, reason: 'capped' });
+
+    const failed = await call('/api/checkout', { quoteId: 'quote-stale' });
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toEqual({
+      code: 'price_unchecked',
+      error: 'We could not check a price with the shop just now. Nothing was charged. Please try again.',
+    });
+    expect(createOrder).toHaveBeenCalledTimes(0);
+
+    const freshLine: QuoteLine = {
+      ...line,
+      source: { ...line.source!, retrievedAt: at },
+    };
+    db.sqlite.prepare(`INSERT INTO quotes(id, visitor, design_id, design_version, lines, total_cents, currency, hash, state, created_at, updated_at)
+      VALUES ('quote-fresh', ?, 'design', 1, ?, 100, 'USD', 'hash', 'open', ?, ?)`).run(visitor, JSON.stringify([freshLine]), at, at);
+
+    const paid = await call('/api/checkout', { quoteId: 'quote-fresh' });
+    expect(paid.status).toBe(200);
+    expect(await paid.json()).toMatchObject({ state: 'approving' });
+    expect(createOrder).toHaveBeenCalledTimes(1);
   });
 });
 

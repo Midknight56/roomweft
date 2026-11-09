@@ -33,15 +33,22 @@ describe('rules picks',()=>{
   });
 });
 
-it('filters strictly by cap and falls back to one cheapest candidate', () => {
-  const cheap=c('cheap',{priceCents:20000}); const expensive=c('expensive',{priceCents:30000,materials:['oak','linen'],dims:{w:50,d:50,h:80}});
-  expect(eligibleCandidates(60000,'reading-chair',[expensive,cheap])).toEqual([cheap]);
-  expect(rulesPick(STYLES[0],60000,'reading-chair',[expensive,cheap])).toEqual(cheap);
-  expect(eligibleCandidates(15000,'reading-chair',[expensive,cheap])).toEqual([cheap]);
-  expect(eligibleCandidates(15000,'reading-chair',[])).toEqual([]);
+it('gives no pick when none is under the slot share and picks candidates under the share', () => {
+  const cheap = c('cheap', { priceCents: 20000 });
+  const expensive = c('expensive', { priceCents: 30000, materials: ['oak', 'linen'], dims: { w: 50, d: 50, h: 80 } });
+  // $150 budget (15000 cents): reading-chair share is 40% = $60 (6000 cents)
+  // a $150 budget with only a $200 chair gives no pick
+  expect(eligibleCandidates(15000, 'reading-chair', [cheap])).toEqual([]);
+  expect(rulesPick(STYLES[0], 15000, 'reading-chair', [cheap])).toBeNull();
+  expect(eligibleCandidates(15000, 'reading-chair', [expensive, cheap])).toEqual([]);
+  expect(eligibleCandidates(15000, 'reading-chair', [])).toEqual([]);
+
+  // candidates under the share still pick
+  expect(eligibleCandidates(60000, 'reading-chair', [expensive, cheap])).toEqual([cheap]);
+  expect(rulesPick(STYLES[0], 60000, 'reading-chair', [expensive, cheap])).toEqual(cheap);
 });
 it('explains the actual share and at most two matching materials', () => {
   expect(rulesReason(STYLES[1],90000,'side-table',c('table',{materials:['oak']}))).toBe('Under the $135 share for this piece. Oak matches the style.');
   expect(rulesReason(STYLES[0],90000,'side-table',c('table',{materials:['oak','linen','wool']}))).toContain('Oak and linen match the style.');
-  expect(rulesReason(STYLES[0],15000,'side-table',c('table'))).toBe('Lowest price available. Above the $22.5 share for this piece. Closest colours to the style.');
+  expect(rulesReason(STYLES[0],15000,'side-table',c('table'))).toBe('Under the $22.5 share for this piece. Closest colours to the style.');
 });

@@ -1,8 +1,8 @@
 import type { State } from './state';
 import type { Candidate, DesignView, SlotView } from '../shared/api-types';
 import type { SlotId } from '../shared/room';
-import { STYLES, OWNED_ITEMS, SLOTS } from '../shared/room';
-import { budgetText, checkoutAllowed, doorTightWarning, eventTimeText, fitBadge, money, paymentLocked, paypalEventName, quoteChanged, receiptStateText, refundText, slotLabel, unverifiedItemsText } from './helpers';
+import { STYLES, OWNED_ITEMS, SLOTS, slotCapCents } from '../shared/room';
+import { budgetText, checkoutAllowed, doorTightWarning, eventTimeText, failedChecks, fitBadge, money, paymentLocked, paypalEventName, quoteChanged, receiptStateText, refundText, slotLabel, unverifiedItemsText } from './helpers';
 import { swatches } from './theme';
 import { missingSizeText } from './helpers';
 
@@ -10,6 +10,7 @@ export interface Actions {
   brief: (text: string) => void; retry: () => void; style: (id: string) => void; budget: (cents: number) => void; lock: (id: string) => void;
   design: (live: boolean) => void; swap: (slot: SlotId, id: string) => void; quote: () => void; checkout: (method?: 'paypal' | 'card') => void;
   refund: (id: SlotId) => void; refreshReceipt: () => void;
+  select?: (id: string) => void;
 }
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', className = ''): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag); node.textContent = text; node.className = className; return node;
@@ -27,13 +28,63 @@ function retailer(pick: Candidate): HTMLAnchorElement {
   link.target = '_blank'; link.rel = 'noopener noreferrer'; return link;
 }
 function candidate(card: HTMLElement, pick: Candidate): void {
-  if (pick.image) { try { const url = new URL(pick.image); if (url.protocol === 'https:') { const image = el('img'); image.src = url.href; image.alt = pick.title; image.loading = 'lazy'; image.width = 88; image.height = 88; image.addEventListener('error', () => image.remove(), { once: true }); card.append(image); } } catch { /* The text listing remains available. */ } }
-  card.append(el('small', pick.domain), el('h3', pick.title), el('strong', money(pick.priceCents)), el('p', pick.dims ? `${pick.dims.w} x ${pick.dims.d} x ${pick.dims.h} cm` : missingSizeText(pick)));
+  if (pick.image) { try { const url = new URL(pick.image); if (url.protocol === 'https:') { const image = el('img'); image.src = url.href; image.alt = pick.title; image.loading = 'lazy'; image.width = 128; image.height = 128; image.addEventListener('error', () => image.remove(), { once: true }); card.append(image); } } catch { /* The text listing remains available. */ } }
+  card.append(el('small', pick.domain), el('h3', pick.title), el('strong', money(pick.priceCents)), el('p', pick.dims ? `${pick.dims.w} x ${pick.dims.d} x ${pick.dims.h} cm` : missingSizeText(pick), 'pick-size'));
+}
+function renderSummary(design: DesignView, actions: Actions, root: HTMLElement): HTMLElement {
+  const summary = el('section', '', 'summary');
+  summary.dataset.testid = 'summary';
+  const facts = el('div', '', 'summary-facts');
+  const totalFact = el('span', '', 'summary-fact');
+  totalFact.append(el('strong', money(design.totals.totalCents)), document.createTextNode(` of ${money(design.totals.budgetCents)}`));
+  const budgetFact = el('span', '', `summary-fact ${design.totals.overCents ? 'alarm' : 'moss'}`);
+  if (design.totals.overCents) {
+    budgetFact.append(el('strong', money(design.totals.overCents)), document.createTextNode(' over'));
+  } else {
+    budgetFact.append(el('strong', money(design.totals.budgetCents - design.totals.totalCents)), document.createTextNode(' left'));
+  }
+  const failed = failedChecks(design);
+  const failedFact = el('span', '', `summary-fact ${failed.count ? 'alarm' : ''}`);
+  failedFact.append(el('strong', String(failed.count)), document.createTextNode(` ${failed.count === 1 ? 'failed check' : 'failed checks'}`));
+  const unverifiedFact = el('span', '', `summary-fact ${design.totals.unverifiedCount ? 'amber' : ''}`);
+  unverifiedFact.append(el('strong', String(design.totals.unverifiedCount)), document.createTextNode(` ${design.totals.unverifiedCount === 1 ? 'unverified piece' : 'unverified pieces'}`));
+  facts.append(totalFact, budgetFact, failedFact, unverifiedFact);
+  summary.append(facts);
+  if (failed.count > 0 && failed.objectId) {
+    const objectId = failed.objectId;
+    const buttonLabel = `Fix the ${(failed.objectLabel ?? objectId).toLowerCase()}`;
+    const fixButton = button(buttonLabel, () => {
+      actions.select?.(objectId);
+      const card = root.querySelector<HTMLElement>(`[data-object="${objectId}"]`) ?? document.querySelector<HTMLElement>(`[data-testid="slot-${objectId}"]`);
+      card?.scrollIntoView({ block: 'nearest' });
+      const swapButton = card?.querySelector<HTMLButtonElement>(`[data-testid="swap-${objectId}"]`)
+        ?? card?.querySelector<HTMLButtonElement>('[data-testid^="swap-"]')
+        ?? card?.querySelector<HTMLButtonElement>('button');
+      if (swapButton) swapButton.focus();
+      else card?.focus();
+    }, false, 'summary-fix');
+    fixButton.className = 'summary-fix';
+    summary.append(fixButton);
+  }
+  return summary;
 }
 function pickCard(slot: SlotView, design: DesignView, state: State, actions: Actions, index: number): HTMLElement {
   const card = el('article', '', 'pick'); card.dataset.object = slot.slot; card.dataset.testid = `slot-${slot.slot}`; card.tabIndex = 0;
   const heading = objectLine(slot.slot, index); heading.append(el('strong', slotLabel(slot.slot))); card.append(heading);
-  if (!slot.pick) { card.append(el('p', slot.note ?? 'No listing found. Try another style or search again.', 'amber')); return card; }
+  if (!slot.pick) {
+    const cap = slotCapCents(design.budgetCents, slot.slot);
+    const moneyVal = `$${Number((cap / 100).toFixed(2))}`;
+    card.append(el('p', slot.note ?? `Nothing under the ${moneyVal} share for this piece. Raise the budget or swap.`, 'amber'));
+    if (slot.alternates.length) {
+      const other = el('details'); other.append(el('summary', 'See other options'));
+      for (const [idx, alternate] of slot.alternates.entries()) {
+        const option = el('div', '', 'alternate'); option.append(el('strong', alternate.candidate.title), el('p', `${money(alternate.candidate.priceCents)} (${alternate.priceDeltaCents >= 0 ? '+' : ''}${money(alternate.priceDeltaCents)})`), el('p', !alternate.verified ? 'Fit unverified' : alternate.fit.passes ? 'Fits' : alternate.fit.messages.join(' '), !alternate.verified ? 'amber' : alternate.fit.passes ? 'moss' : 'alarm'));
+        option.append(button('Choose this item', () => actions.swap(slot.slot, alternate.candidate.id), state.busy || paymentLocked(state.quote), idx > 0 ? `alternate-${slot.slot}-${idx}` : `swap-${slot.slot}`)); other.append(option);
+      }
+      card.append(other);
+    }
+    return card;
+  }
   candidate(card, slot.pick);
   if (slot.unavailable) card.append(el('p', 'No longer available at this shop. Swap for another.', 'alarm'));
   card.append(el('p', slot.by === 'ai' ? `Picked for taste by the model. ${slot.reason}` : slot.by === 'recorded' ? `Picked in the recorded run. ${slot.reason}` : `Picked by rules. ${slot.reason}`, 'pick-reason'));
@@ -66,6 +117,7 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
   if (state.notice) messages.append(el('p', state.notice, 'notice'));
   if (state.busy) messages.append(el('p', 'Working on your room…', 'notice')); fragment.append(messages);
   if (!state.ready) { const failure = el('section', '', 'error-card'); failure.append(el('h2', 'Your room is not ready yet'), el('p', 'The room service could not load. Please try again.'), button('Retry', actions.retry, state.busy)); fragment.append(failure); root.replaceChildren(fragment); return; }
+  if (state.design) fragment.append(renderSummary(state.design, actions, root));
   const room = section(1, 'Your room'); room.append(el('p', 'Your own furniture stays. RoomWeft fits the rest around it.'));
   OWNED_ITEMS.forEach((item, index) => {
     const owned = state.owned.find(entry => entry.id === item.id); const row = objectLine(item.id, index); row.append(el('strong', item.label), el('small', owned?.locked ? 'Locked in place' : 'Movable'));
@@ -89,7 +141,10 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     if (brief.text) box.append(el('p', brief.text));
     if (brief.by === 'rules') box.append(el('small', 'Brief read by rules'));
     box.append(el('p', brief.understood));
-    for (const slot of SLOTS) box.append(el('small', `Searched: ${brief.queries[slot.id]}`));
+    const searchDetails = el('details');
+    searchDetails.append(el('summary', 'Search details'));
+    for (const slot of SLOTS) searchDetails.append(el('small', `Searched: ${brief.queries[slot.id]}`));
+    box.append(searchDetails);
     style.append(box);
   }
   const budgetControl = el('div', '', 'budget-control');
@@ -119,8 +174,8 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
   if (design) {
     design.slots.forEach((slot, index) => { if (slot.pick) { const row = objectLine(slot.slot, index); row.append(el('span', slot.pick.title), el('strong', money(slot.pick.priceCents))); basket.append(row); } });
     basket.append(el('p', `${money(design.totals.totalCents)} of ${money(design.totals.budgetCents)}`, 'total'), el('p', budgetText(design.totals.totalCents, design.totals.budgetCents), design.totals.overCents ? 'alarm' : 'moss'), el('p', unverifiedItemsText(design.totals.unverifiedCount)));
-    const missing = design.slots.length !== 4 || design.slots.some(slot => !slot.pick); const blocked = !design.fit.passes || missing;
-    if (blocked) basket.append(el('p', missing ? 'Fill every slot before checkout.' : 'Fix the red findings before checkout.', 'alarm'));
+    const hasPicks = design.slots.some(slot => slot.pick); const blocked = !design.fit.passes || !hasPicks;
+    if (blocked) basket.append(el('p', !hasPicks ? 'Pick at least one item before checkout.' : 'Fix the red findings before checkout.', 'alarm'));
     for (const message of design.fit.messages) basket.append(el('small', message, 'fit-message'));
     basket.append(el('p', 'You pay our PayPal sandbox merchant with test money. No real furniture is ordered or shipped. Retailer links are separate.', 'sandbox-note'));
     const quote = state.quote; const changed = quote ? quoteChanged(quote, design) : false;

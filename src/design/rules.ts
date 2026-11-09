@@ -3,7 +3,7 @@ import { slotCapCents, type SlotId, type Style } from '../shared/room';
 export function eligibleCandidates(budgetCents: number, slot: SlotId, candidates: readonly Candidate[]): Candidate[] {
   const eligible = candidates.filter(c => c.priceCents <= slotCapCents(budgetCents, slot));
   if (eligible.length) return slot !== 'rug' && eligible.some(c => c.dims) ? eligible.filter(c => c.dims) : eligible;
-  return [...candidates].sort((a,b) => a.priceCents-b.priceCents || a.id.localeCompare(b.id)).slice(0,1);
+  return [];
 }
 const materials = { 'warm-reading': ['wood','oak','walnut','linen','wool','boucle'], 'calm-studio': ['oak','ash','white','cotton','jute'], 'night-desk': ['metal','black','walnut','velvet','brass'] };
 function distance(a: string, b: string): number {
@@ -23,7 +23,7 @@ export function rulesPick(style: Style, budgetCents: number, slot: SlotId, candi
 export function rulesReason(style: Style, budgetCents: number, slot: SlotId, candidate: Candidate): string {
   const cap = slotCapCents(budgetCents, slot);
   const money = `$${Number((cap / 100).toFixed(2))}`;
-  const budget = candidate.priceCents <= cap ? `Under the ${money} share for this piece.` : `Lowest price available. Above the ${money} share for this piece.`;
+  const budget = `Under the ${money} share for this piece.`;
   const matched = materials[style.id].filter(word => candidate.materials.some(m => m.toLowerCase().includes(word))).slice(0,2);
   const words = matched.join(' and ');
   return `${budget} ${words ? words[0].toUpperCase() + words.slice(1) + (matched.length === 1 ? ' matches' : ' match') + ' the style.' : 'Closest colours to the style.'}`;

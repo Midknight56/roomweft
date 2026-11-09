@@ -56,6 +56,17 @@ try {
   });
   await page.goto('http://room.test/'); await page.getByRole('button', { name: 'Swap for one that fits', exact: true }).waitFor();
   await page.waitForFunction(() => window.__roomweftReady === true);
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    const summary = page.getByTestId('summary');
+    assert.equal(await summary.isVisible(), true, `summary is visible at ${viewport.width}x${viewport.height}`);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${viewport.width}px has no sideways scroll`);
+    const fixButton = summary.getByRole('button', { name: 'Fix the reading chair' });
+    assert.equal(await fixButton.isVisible(), true, `fix button is visible at ${viewport.width}x${viewport.height}`);
+    await fixButton.click();
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'swap-reading-chair', `fix button moves focus to swap button at ${viewport.width}`);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const modelChecks = await page.evaluate(async saved => {
     const { furniture, dispose, RoomScene, Box3 } = await import('/scene-check.js');
     const manifest = await (await fetch('/models/manifest.json')).json();
@@ -97,6 +108,11 @@ try {
   await page.getByRole('heading', {name:'What RoomWeft understood',exact:true}).waitFor();
   await page.getByText('Saved run: searched with the Calm studio words.',{exact:true}).waitFor();
   assert.equal(await page.getByTestId('brief-understood').getAttribute('data-by'), 'saved');
+  const searchDetails = page.getByTestId('brief-understood').locator('details');
+  assert.equal(await searchDetails.locator('summary').innerText(), 'Search details', 'details summary is Search details');
+  assert.equal(await searchDetails.evaluate(node => node.open), false, 'search details closed by default');
+  await searchDetails.locator('summary').click();
+  assert.equal(await searchDetails.evaluate(node => node.open), true, 'search details open on click');
   for (const query of Object.values(STYLES[1].queries)) await page.getByText(`Searched: ${query}`,{exact:true}).waitFor();
   const roomBrief = 'I read in the evening, under $700';
   await page.getByRole('textbox',{name:'Tell RoomWeft about the room'}).fill(roomBrief);
@@ -268,11 +284,12 @@ try {
   priceChange = true; await page.getByTestId('pay-card').click();
   await page.getByText('Floor lamp: $60.00 \u2192 $70.00', { exact: true }).waitFor();
   assert.ok((await page.locator('#panel').innerText()).includes('Prices changed at the shop. Freeze a new quote.'));
-  await page.getByText('$440.00 of $900.00', { exact: true }).waitFor();
+  await page.locator('.total').filter({ hasText: '$440.00 of $900.00' }).waitFor();
+  assert.ok((await page.getByTestId('summary').innerText()).includes('$440.00 of $900.00'));
   assert.equal(await page.getByTestId('pay-card').isDisabled(), true);
   assert.equal(await page.getByTestId('freeze-quote').isEnabled(), true);
   await page.getByTestId('freeze-quote').click(); await page.getByText('Frozen total $440.00').waitFor();
   await page.getByTestId('pay-card').click(); await page.getByText('Capture card-capture').waitFor();
   scenesFail = true; await page.goto('http://room.test/'); await page.getByRole('button', { name: 'Retry', exact: true }).waitFor(); scenesFail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click(); await page.getByRole('heading', { name: 'Your room' }).waitFor();
-  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
+  assert.equal(pageError, undefined, pageError?.message ?? 'page error'); console.log(JSON.stringify({ browser: 'passed', checks: ['summary visible and fix button focus at 1440 and 390', 'saved brief and four saved queries on first screen', 'live search sends the room brief', 'price change refreshes totals and permits a new quote and payment', 'Calm studio opens at $900 with red caption and card button', 'card payment loads and scrolls receipt', 'caption clears controls at phone widths', 'initial failure blocks quote', 'swap clears fit and updates total', 'woven thread draws', 'accepted plan drag', 'refused plan drag', 'keyboard selection and rotation', 'plan labels across cameras', 'plan fits free rectangle at 360, 390, 768 and 1440px', 'clear walk start', 'checkout return top and basket notices', 'unknown capture blocks payment across reload', 'return restores room', 'refund and receipt', 'recorded receipt is read only', 'rules and unverified labels', '360px has no horizontal scroll', 'scene failure and retry', 'phone jump links at 390px', 'plan tools keyboard details on desktop'], pageErrors: [] }));
 } finally { await browser.close(); }

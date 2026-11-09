@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkFit, doorTight, footprintBounds, moveItem, type Footprint } from "../../src/shared/fit";
+import { checkFit, doorTight, evaluateDesignFit, footprintBounds, moveItem, type Footprint } from "../../src/shared/fit";
 import { DOOR, OWNED_ITEMS, placeAtAnchor, ROOM, SLOTS, WINDOW } from "../../src/shared/room";
 
 const owned = (): Footprint[] => OWNED_ITEMS.map(item => ({ ...item, source: "owned", dims: "verified" }));
@@ -238,6 +238,84 @@ describe("fit", () => {
     expect(standardResult.tight).toEqual([]);
     expect(tightResult.passes).toBe(standardResult.passes);
     expect(tightResult.messages).toEqual(standardResult.messages);
+  });
+
+  describe("evaluateDesignFit", () => {
+    it("gives no geometric failure for an unsized reading chair in the door swing", () => {
+      const chairInDoor = item({
+        id: "reading-chair",
+        label: "Reading chair",
+        kind: "chair",
+        source: "slot",
+        dims: "unverified",
+        nominal: true,
+        w: 70,
+        d: 70,
+        h: 80,
+        x: 250,
+        z: 40,
+        rot: 0,
+      });
+      const result = evaluateDesignFit([chairInDoor]);
+      expect(result.doorSwing).toEqual([]);
+      expect(result.unverified).toEqual(["reading-chair"]);
+      expect(result.passes).toBe(true);
+      expect(result.messages).toContain("Checks pass for sized items. One item is unverified.");
+      expect(result.messages).toContain("The Reading chair has unverified dimensions.");
+    });
+
+    it("gives no geometric failure for an unsized floor lamp in the walkway", () => {
+      const lampInWalkway = item({
+        id: "floor-lamp",
+        label: "Floor lamp",
+        kind: "lamp",
+        source: "slot",
+        dims: "unverified",
+        nominal: true,
+        w: 40,
+        d: 40,
+        h: 150,
+        x: 262.5,
+        z: 70,
+        rot: 0,
+      });
+      const result = evaluateDesignFit([...owned(), lampInWalkway]);
+      expect(result.walkway.reachable).toBe(true);
+      expect(result.unverified).toEqual(["floor-lamp"]);
+      expect(result.passes).toBe(true);
+      expect(result.messages).toContain("Checks pass for sized items. One item is unverified.");
+      expect(result.messages).toContain("The Floor lamp has unverified dimensions.");
+    });
+
+    it("keeps the price of an unsized piece in the total and fails on budget when over", () => {
+      const overBudgetChair = item({
+        id: "reading-chair",
+        label: "Reading chair",
+        kind: "chair",
+        source: "slot",
+        dims: "unverified",
+        nominal: true,
+        w: 70,
+        d: 70,
+        h: 80,
+        x: 341,
+        z: 39,
+        rot: 270,
+      });
+      const result = evaluateDesignFit([overBudgetChair], {
+        prices: { "reading-chair": 50000 },
+        budget: 40000,
+      });
+      expect(result.doorSwing).toEqual([]);
+      expect(result.inside).toEqual([]);
+      expect(result.overlaps).toEqual([]);
+      expect(result.unverified).toEqual(["reading-chair"]);
+      expect(result.budget).toEqual({ total: 50000, budget: 40000, over: 10000 });
+      expect(result.passes).toBe(false);
+      expect(result.messages).toContain("The basket is over budget by $100.00.");
+      expect(result.messages).toContain("Checks pass for sized items. One item is unverified.");
+      expect(result.messages).toContain("The Reading chair has unverified dimensions.");
+    });
   });
 });
 

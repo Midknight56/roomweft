@@ -19,7 +19,11 @@ const host = document.querySelector<HTMLElement>('#room')!; const tooltip = docu
 let view: RoomScene | null = null; let previous: DesignView | null = null; let previousReceipt: ReceiptView | null = null;
 try { view = new RoomScene(host); } catch { const error = document.createElement('p'); error.className = 'error-card'; error.textContent = 'The 3D view needs WebGL. You can still review the room picks below.'; host.append(error); }
 const thread = view ? threads(view, tooltip) : null;
-const control = view ? controls(view, async (itemId, placement) => { await run(async () => { const design = store.get().design; if (!design || paymentLocked(store.get().quote)) throw new Error('Finish the current payment before moving furniture.'); accept(await api.move(design.id, itemId, placement)); }); }, id => thread?.select(id)) : null;
+const selectItem = (id: string | null): void => {
+  thread?.select(id);
+  (window as unknown as { __roomweftSelected?: string | null }).__roomweftSelected = id;
+};
+const control = view ? controls(view, async (itemId, placement) => { await run(async () => { const design = store.get().design; if (!design || paymentLocked(store.get().quote)) throw new Error('Finish the current payment before moving furniture.'); accept(await api.move(design.id, itemId, placement)); }); }, selectItem) : null;
 document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button => button.addEventListener('click', () => control?.mode(button.dataset.mode as 'Overview' | 'Plan' | 'Walk')));
 document.querySelector('#rotate')?.addEventListener('click', () => control?.rotate());
 control?.mode('Overview');
@@ -92,7 +96,11 @@ async function run(action: () => Promise<void>): Promise<void> {
     store.set({ error: error instanceof Error ? error.message : 'The request could not be completed.' });
     if (error instanceof RequestError && error.design) accept(error.design);
     if (error instanceof RequestError && error.quote) store.set({ quote: error.quote });
-    if (error instanceof RequestError && /stale|version|price/i.test(error.code) && store.get().quote) store.set({ quote: { ...store.get().quote!, state: 'stale' } });
+    if (error instanceof RequestError && error.code === 'price_unchecked' && store.get().quote) {
+      store.set({ quote: { ...store.get().quote!, state: 'open' } });
+    } else if (error instanceof RequestError && /stale|version|price/i.test(error.code) && store.get().quote) {
+      store.set({ quote: { ...store.get().quote!, state: 'stale' } });
+    }
   } finally { store.set({ busy: false }); view?.resume(); }
 }
 async function refreshReceipt(quoteId?: string): Promise<void> {
@@ -159,6 +167,7 @@ const actions: Actions = {
     }
   }); },
   refreshReceipt: () => { void run(refreshReceipt); },
+  select: id => { selectItem(id); },
 };
 const unsubscribe = store.subscribe(state => {
   renderPanel(panel, state, actions); renderStatus(status, state);

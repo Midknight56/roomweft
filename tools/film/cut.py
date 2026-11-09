@@ -75,6 +75,35 @@ def calculate_segment_duration(seg: dict[str, Any]) -> float:
     return (out_time - in_time) / speed
 
 
+def read_frame_size(take_path: str) -> tuple[int, int]:
+    """Read video width and height using ffprobe."""
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height",
+        "-of",
+        "json",
+        take_path,
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        raise PlanValidationError(
+            f"Could not read frame size for {take_path}: {res.stderr.strip()}"
+        )
+    try:
+        data = json.loads(res.stdout)
+        streams = data.get("streams", [])
+        if not streams:
+            raise PlanValidationError(f"No video streams found in {take_path}.")
+        return int(streams[0]["width"]), int(streams[0]["height"])
+    except (json.JSONDecodeError, KeyError, IndexError, ValueError) as err:
+        raise PlanValidationError(f"Could not parse frame size for {take_path}: {err}")
+
+
 def validate_plan(plan: dict[str, Any], plan_dir: str, any_length: bool = False) -> float:
     """Validate film plan and return total duration."""
     takes = plan.get("takes", {})
@@ -92,6 +121,7 @@ def validate_plan(plan: dict[str, Any], plan_dir: str, any_length: bool = False)
         raise PlanValidationError("Plan segments must be a non empty list.")
 
     total_length = 0.0
+    frame_sizes: dict[str, tuple[int, int]] = {}
     for idx, seg in enumerate(segments):
         take_name = seg.get("take")
         if not take_name or take_name not in takes:
@@ -114,6 +144,45 @@ def validate_plan(plan: dict[str, Any], plan_dir: str, any_length: bool = False)
                 raise PlanValidationError(f"PIP take file not found: {takes[pip_take]}.")
             if float(pip.get("out", 0.0)) <= float(pip.get("in", 0.0)):
                 raise PlanValidationError(f"PIP out time must be greater than in time in segment {idx}.")
+
+        crop = seg.get("crop")
+        if crop is not None:
+            if not isinstance(crop, dict):
+                raise PlanValidationError(f"Segment {idx} crop must be an object.")
+            for key in ("x", "y", "w", "h"):
+                if key not in crop:
+                    raise PlanValidationError(f"Segment {idx} crop missing required key '{key}'.")
+            try:
+                cx = int(crop["x"])
+                cy = int(crop["y"])
+                cw = int(crop["w"])
+                ch = int(crop["h"])
+            except (ValueError, TypeError):
+                raise PlanValidationError(f"Segment {idx} crop coordinates must be integers.")
+
+            if cw < 320 or ch < 180:
+                raise PlanValidationError(
+                    f"Segment {idx} crop {cw}x{ch} is smaller than 320x180."
+                )
+
+            resolved_take = resolve_path(takes[take_name], plan_dir)
+            if resolved_take not in frame_sizes:
+                frame_sizes[resolved_take] = read_frame_size(resolved_take)
+            take_w, take_h = frame_sizes[resolved_take]
+
+            if cx < 0 or cy < 0 or (cx + cw) > take_w or (cy + ch) > take_h:
+                raise PlanValidationError(
+                    f"Segment {idx} crop [{cx}, {cy}, {cw}, {ch}] is outside take frame size {take_w}x{take_h}."
+                )
+
+        label_hold = seg.get("labelHold")
+        if label_hold is not None:
+            try:
+                lh = float(label_hold)
+                if lh <= 0:
+                    raise PlanValidationError(f"Segment {idx} labelHold must be positive.")
+            except (ValueError, TypeError):
+                raise PlanValidationError(f"Segment {idx} labelHold must be a positive number.")
 
     if not any_length:
         if total_length < 165.0 or total_length > 175.0:
@@ -341,10 +410,20 @@ def build_video_filtergraph(
         speed = float(seg.get("speed", 1.0))
         seg_dur = (out_time - in_time) / speed
 
+        crop = seg.get("crop")
+        crop_filter = ""
+        if crop:
+            cx = int(crop["x"])
+            cy = int(crop["y"])
+            cw = int(crop["w"])
+            ch = int(crop["h"])
+            crop_filter = f"crop={cw}:{ch}:{cx}:{cy},"
+
         base_label = f"s_base_{idx}"
         base_filter = (
             f"[{in_idx}:v]trim=start={in_time:.3f}:end={out_time:.3f},"
             f"setpts=(PTS-STARTPTS)/{speed:.6f},"
+            f"{crop_filter}"
             f"scale=1920:1080:force_original_aspect_ratio=decrease,"
             f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0xF6F1E7,"
             f"setsar=1,fps=30[{base_label}]"
@@ -381,6 +460,8 @@ def build_video_filtergraph(
 
         label = seg.get("label")
         if label:
+            label_hold = float(seg.get("labelHold", 1.5))
+            hold_str = f"{label_hold:g}"
             esc_label = escape_caption(label)
             lbl_stream = f"s_lbl_{idx}"
             draw_lbl = (
@@ -389,7 +470,7 @@ def build_video_filtergraph(
                 f"text='{esc_label}':"
                 f"fontsize=28:fontcolor=white:"
                 f"box=1:boxcolor=0x1F2A44@0.88:boxborderw=10:"
-                f"x=40:y=40:enable=lte(t\\,1.5)[{lbl_stream}]"
+                f"x=40:y=40:enable=lte(t\\,{hold_str})[{lbl_stream}]"
             )
             filter_parts.append(draw_lbl)
             current_stream = lbl_stream

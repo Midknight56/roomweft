@@ -44,6 +44,42 @@ export function projectPoint(ndc: { x: number; y: number; z: number }, rect: { l
   return { x: rect.left + (ndc.x + 1) * rect.width / 2, y: rect.top + (1 - ndc.y) * rect.height / 2 };
 }
 export const slotLabel = (slot: SlotView['slot']): string => SLOTS.find(item => item.id === slot)?.label ?? slot;
+export interface FailedCheckSummary {
+  count: number;
+  objectId?: string;
+  objectLabel?: string;
+}
+export function failedChecks(design: DesignView): FailedCheckSummary {
+  const fit = design.fit;
+  const failedObjectIds: string[] = [];
+  if (fit.doorSwing?.length) {
+    for (const id of fit.doorSwing) if (!failedObjectIds.includes(id)) failedObjectIds.push(id);
+  }
+  if (fit.inside?.length) {
+    for (const id of fit.inside) if (!failedObjectIds.includes(id)) failedObjectIds.push(id);
+  }
+  if (fit.overlaps?.length) {
+    for (const [a, b] of fit.overlaps) {
+      if (!failedObjectIds.includes(a)) failedObjectIds.push(a);
+      if (!failedObjectIds.includes(b)) failedObjectIds.push(b);
+    }
+  }
+  const walkwayTargets = (fit.walkway?.targets ?? []).filter(t => !t.reachable);
+  for (const t of walkwayTargets) {
+    if (!failedObjectIds.includes(t.id)) failedObjectIds.push(t.id);
+  }
+  for (const slot of design.slots) {
+    if (slot.pick && slot.unavailable && !failedObjectIds.includes(slot.slot)) {
+      failedObjectIds.push(slot.slot);
+    }
+  }
+  const overBudget = (fit.budget?.over > 0 || design.totals.overCents > 0) ? 1 : 0;
+  let count = failedObjectIds.length + overBudget;
+  if (!fit.passes && count === 0) count = 1;
+  const firstId = failedObjectIds[0];
+  const label = firstId ? (SLOTS.find(item => item.id === firstId)?.label ?? OWNED_ITEMS.find(item => item.id === firstId)?.label ?? firstId) : undefined;
+  return { count, objectId: firstId, objectLabel: label };
+}
 export const refundText = (state: RefundState): string => state === 'unknown' ? 'Checking refund' : `Refund ${state === 'requesting' ? 'pending' : state}`;
 export function paypalEventName(type: string): string {
   switch (type) {
@@ -69,7 +105,7 @@ export function receiptStateText(state: QuoteView['state'], recorded = false): s
 }
 export const quoteChanged = (quote: QuoteView, design: DesignView): boolean => quote.designId !== design.id || quote.designVersion !== design.version || quote.state === 'stale' || quote.state === 'superseded';
 export function paymentLocked(quote: QuoteView | null): boolean { return !!quote && ['ordering', 'approving', 'capturing', 'capture_unknown'].includes(quote.state); }
-export function checkoutAllowed(quote: QuoteView, design: DesignView): boolean { return !quoteChanged(quote, design) && design.fit.passes && design.slots.length === 4 && design.slots.every(slot => slot.pick) && ['open', 'approving'].includes(quote.state); }
+export function checkoutAllowed(quote: QuoteView, design: DesignView): boolean { return !quoteChanged(quote, design) && design.fit.passes && design.slots.some(slot => slot.pick) && ['open', 'approving'].includes(quote.state); }
 export function approvalUrl(value: string): string | null {
   try { const url = new URL(value); return url.protocol === 'https:' && url.hostname === 'www.sandbox.paypal.com' && !url.username && !url.password ? url.href : null; } catch { return null; }
 }

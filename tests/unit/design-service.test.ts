@@ -10,6 +10,8 @@ import type { ProductCandidate, SearchResult } from '../../src/products/channel3
 import { recordedPicks, recordedRuns } from '../../src/design/recorded';
 import { asD1, freshD1, LEDGER_SQL } from './d1-fake';
 import { makeRecordedData } from './recorded-fixture';
+import { evaluateDesignFit } from '../../src/shared/fit';
+import { layoutOf } from '../../src/client/helpers';
 vi.mock('../../src/design/recorded',async()=>{
   const {makeRecordedData}=await import('./recorded-fixture');
   return makeRecordedData();
@@ -375,10 +377,12 @@ describe('design service',()=>{
     const expensive={...small,id:'expensive',priceCents:20000,dims:null};
     search.mockResolvedValueOnce({ok:true,candidates:[expensive,{...small,priceCents:10000,dims:null}],source:{query:'chair',maxPrice:150,resultIds:['expensive','small'],retrievedAt:at,cached:false,origin:'live'}});
     const design=await service.createDesign({...input,budget:150});
+    const chair=design.slots.find(s=>s.slot==='reading-chair')!;
+    expect(chair.pick).toBeNull(); expect(chair.note).toBe('Nothing under the $60 share for this piece. Raise the budget or swap.');
     const swapped=await service.swap(design.id,'visitor','reading-chair','expensive');
     expect(swapped.fit.budget.over).toBe(5000); expect(swapped.fit.passes).toBe(false);
     expect(swapped.totals).toMatchObject({totalCents:20000,overCents:5000,unverifiedCount:1});
-    expect(swapped.swapNote).toContain('size unverified'); expect(swapped.swapNote).toContain('adds $100.00');
+    expect(swapped.swapNote).toContain('size unverified'); expect(swapped.swapNote).toContain('adds $200.00');
   });
   it('validates styles, whole dollar budgets, owned ids, locked defaults and room bounds',async()=>{
     const {service,input,search}=fixture();
@@ -394,6 +398,65 @@ describe('design service',()=>{
     search.mockImplementation(async(query,maxPrice)=>({ok:true,candidates:[],source:{query,maxPrice,resultIds:[],retrievedAt:at,cached:true,origin:'live'}}));
     const design=await service.createDesign(input);
     expect(design.labels).toEqual({search:'cached',ai:'rules'});
+  });
+  it('saved fit equals shared evaluation on layoutOf for an unsized reading chair in the door swing', async () => {
+    const { service, input } = fixture({ unknown: true });
+    const design = await service.createDesign(input);
+    const moved = await service.move(design.id, 'visitor', 'reading-chair', 250, 40, 0);
+    const browserFit = evaluateDesignFit(layoutOf(moved), {
+      prices: Object.fromEntries(moved.slots.map(s => [s.slot, s.pick?.priceCents ?? 0])),
+      budget: moved.budgetCents,
+      unavailable: moved.slots.filter(s => s.unavailable).map(s => s.slot),
+    });
+    expect(moved.fit.passes).toBe(browserFit.passes);
+    expect(moved.fit.messages).toEqual(browserFit.messages);
+    expect(moved.fit.unverified).toEqual(browserFit.unverified);
+    expect(moved.fit.doorSwing).toEqual([]);
+    expect(moved.fit.passes).toBe(true);
+  });
+  it('saved fit equals shared evaluation on layoutOf for an unsized floor lamp in the walkway', async () => {
+    const { service, input, search } = fixture();
+    search.mockImplementation(async (query, maxPrice) => {
+      if (query === STYLES[0].queries['floor-lamp']) {
+        return {
+          ok: true,
+          candidates: [{ ...small, id: 'lamp', kind: 'lamp', priceCents: 1000, dims: null }],
+          source: { query, maxPrice, resultIds: ['lamp'], retrievedAt: at, cached: false, origin: 'live' },
+        };
+      }
+      return {
+        ok: true,
+        candidates: query === STYLES[0].queries['reading-chair'] ? [small] : [],
+        source: { query, maxPrice, resultIds: [], retrievedAt: at, cached: false, origin: 'live' },
+      };
+    });
+    const design = await service.createDesign(input);
+    const moved = await service.move(design.id, 'visitor', 'floor-lamp', 260, 70, 0);
+    const browserFit = evaluateDesignFit(layoutOf(moved), {
+      prices: Object.fromEntries(moved.slots.map(s => [s.slot, s.pick?.priceCents ?? 0])),
+      budget: moved.budgetCents,
+      unavailable: moved.slots.filter(s => s.unavailable).map(s => s.slot),
+    });
+    expect(moved.fit.passes).toBe(browserFit.passes);
+    expect(moved.fit.messages).toEqual(browserFit.messages);
+    expect(moved.fit.unverified).toEqual(browserFit.unverified);
+    expect(moved.fit.walkway.reachable).toBe(true);
+    expect(moved.fit.passes).toBe(true);
+  });
+  it('saved fit equals shared evaluation on layoutOf for an over budget unsized piece', async () => {
+    const { service, input } = fixture({ unknown: true });
+    const design = await service.createDesign(input);
+    const repriced = await service.applyPrices(design.id, 'visitor', [{ lineId: 'reading-chair', oldCents: 18600, newCents: 70000 }]);
+    const browserFit = evaluateDesignFit(layoutOf(repriced), {
+      prices: Object.fromEntries(repriced.slots.map(s => [s.slot, s.pick?.priceCents ?? 0])),
+      budget: repriced.budgetCents,
+      unavailable: repriced.slots.filter(s => s.unavailable).map(s => s.slot),
+    });
+    expect(repriced.fit.passes).toBe(browserFit.passes);
+    expect(repriced.fit.messages).toEqual(browserFit.messages);
+    expect(repriced.fit.unverified).toEqual(browserFit.unverified);
+    expect(repriced.fit.passes).toBe(false);
+    expect(repriced.fit.budget.over).toBe(10000);
   });
 });
 

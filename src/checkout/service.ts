@@ -161,10 +161,12 @@ export class CheckoutService {
     const lines = this.view(row).lines;
     let checked: readonly RecheckedLine[];
     try { checked = await (opts.recheck?.(structuredClone(lines)) ?? Promise.resolve([])); }
-    catch {
+    catch (error) {
+      const message = error instanceof Error ? error.message : "Prices could not be checked. Please try again.";
       await this.db.prepare("UPDATE quotes SET state = 'open', error = ?, updated_at = ? WHERE id = ? AND state = 'ordering'")
-        .bind("Prices could not be checked. Please try again.", this.clock(), quoteId).run();
-      return failure("recheck_failed", "Prices could not be checked. Please try again.", await this.current(quoteId));
+        .bind(message, this.clock(), quoteId).run();
+      if (error instanceof Error && 'status' in error) throw error;
+      return failure("recheck_failed", message, await this.current(quoteId));
     }
     const repriced: NonNullable<QuoteView["repriced"]> = [];
     for (const entry of checked) {

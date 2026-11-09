@@ -66,10 +66,18 @@ input[type=range]{width:100%;accent-color:var(--thread);margin:16px 0 22px;curso
 .design-actions button{white-space:nowrap}
 .buttons button:first-child,.step>button{background:var(--thread);color:var(--panel);border-color:var(--thread)}
 .step>button{margin:12px 12px 0 0}
+.summary{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:20px}
+.summary-facts{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.summary-fact{font-size:14px;line-height:1.5}
+.summary-fact strong{font-size:15px;font-weight:600}
+.summary-fix{display:block;width:100%;margin-top:12px;min-height:42px;padding:10px 14px;border:1px solid var(--thread);border-radius:10px;background:var(--thread);color:var(--panel);font-weight:600;font-size:14px;cursor:pointer;text-align:center}
+.summary-fix:hover:not(:disabled){background:#ac472e;border-color:#ac472e}
 .pick{padding:16px;margin:16px 0;border:1px solid var(--line);background:var(--panel);border-radius:14px;display:flow-root;overflow-wrap:anywhere}
 .pick .object-line{border:0;padding:0 0 12px}
-.pick img{float:right;object-fit:contain;border-radius:8px;margin:0 0 12px 12px;background:var(--paper)}
+.pick img{float:right;width:128px;max-width:128px;height:auto;object-fit:contain;border-radius:8px;margin:0 0 12px 12px;background:var(--paper)}
 .pick p{font-size:12px}
+.pick .pick-size,.pick .badge{font-size:14px}
+.pick strong{font-size:15px}
 .pick .pick-reason{clear:both}
 .pick button{margin:0 0 12px;max-width:100%}
 .pick>button{background:var(--thread);color:var(--panel)}
@@ -96,6 +104,7 @@ summary{cursor:pointer;padding:10px 0;min-height:42px}
 .skip:focus{top:12px}
 [hidden]{display:none!important}
 @media(min-width:900px){.panel{padding:24px clamp(20px,2.4vw,40px)}
+.summary{position:sticky;top:0;z-index:5;background:var(--panel);box-shadow:0 2px 8px #1F2A440A}
 }
 @media(max-width:899px){.topbar{padding:16px;gap:12px;min-height:100px}
 .logo{font-size:30px}
@@ -159,4 +168,6 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 
 #brief{display:block;width:100%;min-width:0;box-sizing:border-box;margin:8px 0 14px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:16px}
 .brief-box{padding:12px;margin:0 0 16px;border:1px solid var(--line);border-radius:10px}
+.brief-box details{margin-top:8px}
+.brief-box details summary{font-size:13px;font-weight:500;padding:4px 0;min-height:28px;cursor:pointer;color:var(--thread)}
 .brief-box small{display:block;margin-top:5px;overflow-wrap:anywhere}

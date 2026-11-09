@@ -1,4 +1,5 @@
 import type { Dimensions, Door, Room, RoomWindow } from "./room";
+import { DOOR, ROOM, SLOTS, WINDOW } from "./room";
 
 export type Rotation = 0 | 90 | 180 | 270;
 export interface Footprint {
@@ -325,4 +326,76 @@ export function moveItem<T extends Footprint>(layout: readonly T[], id: string, 
       rot: ((entry.rot + rot - item.rot + 360) % 360) as Rotation,
     };
   });
+}
+
+export interface EvaluateDesignFitOptions {
+  prices?: Readonly<Record<string, number>>;
+  budget?: number;
+  unavailable?: readonly (string | { slot: string })[];
+  room?: Room;
+  door?: Door;
+  window?: RoomWindow;
+}
+
+export function unverifiedPassMessage(count: number): string {
+  if (count === 1) return "Checks pass for sized items. One item is unverified.";
+  return `Checks pass for sized items. ${count} items are unverified.`;
+}
+
+export function evaluateDesignFit(
+  layout: readonly Footprint[],
+  opts: EvaluateDesignFitOptions = {},
+  room: Room = opts.room ?? ROOM,
+  door: Door = opts.door ?? DOOR,
+  window: RoomWindow = opts.window ?? WINDOW,
+): FitReport {
+  const verified = layout.filter(item => item.dims === "verified");
+  const fit = checkFit(verified, room, door, window, { prices: opts.prices, budget: opts.budget });
+
+  const slotItems = layout.filter(item => item.source === "slot");
+  const prices = slotItems.map(item => opts.prices?.[item.id] ?? 0);
+  const budget = opts.budget ?? 0;
+  if (![budget, ...prices].every(value => Number.isSafeInteger(value) && value >= 0)) {
+    throw new Error("Use nonnegative integer cents for money.");
+  }
+  const total = prices.reduce((sum, price) => sum + price, 0);
+  if (!Number.isSafeInteger(total)) throw new Error("The basket total is too large.");
+  const over = Math.max(0, total - budget);
+  fit.budget = { total, budget, over };
+
+  fit.unverified = layout.filter(item => item.dims === "unverified").map(item => item.id);
+
+  const labelFor = (id: string): string => {
+    const slot = SLOTS.find(s => s.id === id);
+    if (slot) return slot.label;
+    const found = layout.find(item => item.id === id);
+    return found?.label ?? id;
+  };
+
+  fit.messages = fit.messages.filter(m => !m.startsWith("The basket is over budget"));
+  if (fit.budget.over > 0) {
+    fit.messages.push(`The basket is over budget by $${(fit.budget.over / 100).toFixed(2)}.`);
+  }
+  for (const id of fit.unverified) {
+    fit.messages.push(`The ${labelFor(id)} has unverified dimensions.`);
+  }
+
+  const geometryPasses = fit.inside.length === 0
+    && fit.overlaps.length === 0
+    && fit.doorSwing.length === 0
+    && fit.walkway.reachable;
+
+  if (geometryPasses && fit.unverified.length > 0) {
+    fit.messages.push(unverifiedPassMessage(fit.unverified.length));
+  }
+
+  const unavailable = opts.unavailable ?? [];
+  const unavailableIds = unavailable.map(entry => typeof entry === "string" ? entry : entry.slot);
+  for (const id of unavailableIds) {
+    fit.messages.push(`${labelFor(id)}: No longer available at this shop. Swap for another.`);
+  }
+
+  fit.passes = geometryPasses && fit.budget.over === 0 && unavailableIds.length === 0;
+
+  return fit;
 }

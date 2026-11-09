@@ -26,7 +26,7 @@ What is real and what is not:
 | --- | --- |
 | Product search | Real Channel3 API calls. The page opens on one saved live run per style from 6 Nov 2026, labelled "Saved live run". "Search live" makes a new one (three a day per visitor). When a daily cap is spent, the page says so and uses the saved run |
 | Sizes | From the retailer listing through Channel3. A missing size is shown as "fit unverified", never guessed |
-| 3D furniture | Our own furniture models, scaled to the listed size and coloured from the listing. Not the exact product |
+| 3D furniture | Our own furniture models, scaled to the listed size when the listing gives a usable size, and coloured from the listing. Not the exact product |
 | Fit checks | Done in code: walls, overlaps, door swing, a 76 cm walkway, budget |
 | Room brief | Workers AI Granite 4.0 H Micro reads the renter's sentence into a style, a budget and search words from a fixed list. Code checks every field. A saved run shows the words it really searched with, labelled as saved |
 | Model picks | The same model picks a candidate per slot for taste and writes a short reason. Code checks every pick. Saved runs keep their recorded picks |
@@ -51,9 +51,9 @@ Run `npm run check:model` online to check the configured model page for deprecat
 PayPal calls (sandbox only): `POST /v1/oauth2/token`, `POST /v2/checkout/orders` (intent CAPTURE, one item line per
 room object; `payment_source.card` for the test card, `payment_source.paypal` for the button), `POST /v2/checkout/orders/{id}/capture`, `GET /v2/checkout/orders/{id}`,
 `POST /v2/payments/captures/{id}/refund`, `GET /v2/payments/refunds/{id}`, `POST /v1/notifications/verify-webhook-signature`.
-Every write carries a `PayPal-Request-Id`. The quote and the design version are frozen together: a changed room cannot
-be captured against an old quote. Prices are checked again before payment, and a changed shop price is saved to
-the room so the next quote can pay.
+Every payment and refund write carries a stable `PayPal-Request-Id`. The quote and the design version are frozen together: a changed room cannot
+be captured against an old quote. A price older than six hours is checked again with the shop before payment; if that check
+fails, no payment starts. A changed shop price is saved to the room so the next quote can pay.
 
 ## What it costs
 

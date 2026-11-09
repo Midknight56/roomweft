@@ -23,7 +23,7 @@ export function services(env: Env) {
     catch (error) { if (error instanceof DesignError && error.code === 'not_found') return null; throw error; }
   }, applyPrices: (id, visitor, repriced, version) => designs.applyPrices(id, visitor, repriced, version) }, returnUrl: new URL('/return', env.PUBLIC_ORIGIN).href, cancelUrl: new URL('/cancel', env.PUBLIC_ORIGIN).href });
   const webhook = new CheckoutWebhook({ db: env.DB, paypal, checkout, webhookId: env.PAYPAL_WEBHOOK_ID ?? '' });
-  return { channel3, ledger, designs, checkout, webhook };
+  return { channel3, ledger, designs, checkout, webhook, paypal };
 }
 type Services = ReturnType<typeof services>;
 async function remaining(db: D1Database, key: string, cap: number, now: number): Promise<number> {
@@ -158,16 +158,13 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
   const method = body.method ?? 'paypal';
   if (method !== 'paypal' && method !== 'card') throw new HttpError(400, 'invalid', 'Choose a sandbox payment method.');
   if (['open', 'cancelled'].includes(quote.state) && !await takeCounter(env.DB, `checkout:${visitor}`, CHECKOUTS_PER_DAY, now)) throw new HttpError(429, 'checkout_cap', 'You have used all six checkouts today. Please return tomorrow.');
-  let failed = false;
   const result = await s.checkout.startCheckout(quoteId, visitor, { method, recheck: async lines => {
-    const recheck = await recheckPrices(lines, s.channel3, now); failed = recheck.failed; return recheck.checked;
+    const recheck = await recheckPrices(lines, s.channel3, now);
+    if (recheck.failed) {
+      throw new HttpError(503, 'price_unchecked', 'We could not check a price with the shop just now. Nothing was charged. Please try again.');
+    }
+    return recheck.checked;
   } });
-  if (failed) {
-    await env.DB.prepare("UPDATE quotes SET error = CASE WHEN error IS NULL THEN ? ELSE error || '. ' || ? END WHERE id = ? AND visitor = ?")
-      .bind('Price not rechecked.', 'Price not rechecked.', quoteId, visitor).run();
-    if (result.ok) result.value.error = result.value.error ? `${result.value.error}. Price not rechecked.` : 'Price not rechecked.';
-    else if (result.quote) result.quote.error = `${result.quote.error ?? result.error} Price not rechecked.`;
-  }
   if (method === 'card' && result.ok) return serviceResponse(await s.checkout.receipt(quoteId, visitor, { reconcile: false }));
   return serviceResponse(result);
 }
