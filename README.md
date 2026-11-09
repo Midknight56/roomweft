@@ -15,7 +15,7 @@ The 60 second path:
 1. Open the page. Calm studio loads from a saved live run. The reading chair shows red: it blocks the door swing.
 2. Press "Swap for one that fits". Press Plan to see the walkway path from the door, then Walk and move through the
    room with W, A, S and D (on a phone, drag).
-3. Freeze the quote and press "Pay with the test card". Every receipt line is tied to an object in the room, and the
+3. Freeze the quote and press "Pay by card". Every receipt line is tied to an object in the room, and the
    receipt lists the PayPal webhook events that passed the signature check. Refund one item and watch the plan and the
    receipt part ways. Then press "Replace this item": the new quote holds only the replacement, and the first receipt
    stays as it was.

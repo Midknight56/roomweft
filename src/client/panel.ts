@@ -23,7 +23,7 @@ function objectLine(id: string, index: number): HTMLDivElement {
 }
 function section(number: number, title: string): HTMLElement { const node = el('section', '', 'step'); const heading = el('h2'); heading.append(el('span', String(number), 'step-number'), document.createTextNode(title)); node.append(heading); return node; }
 function retailer(pick: Candidate): HTMLAnchorElement {
-  const link = el('a', 'Retailer page (not part of the sandbox checkout)');
+  const link = el('a', 'Retailer page (separate from checkout)');
   try { const url = new URL(pick.url); if (url.protocol === 'https:') link.href = url.href; } catch { /* Keep the listing text if its URL is missing. */ }
   link.target = '_blank'; link.rel = 'noopener noreferrer'; return link;
 }
@@ -177,11 +177,11 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
     const hasPicks = design.slots.some(slot => slot.pick); const blocked = !design.fit.passes || !hasPicks;
     if (blocked) basket.append(el('p', !hasPicks ? 'Pick at least one item before checkout.' : 'Fix the red findings before checkout.', 'alarm'));
     for (const message of design.fit.messages) basket.append(el('small', message, 'fit-message'));
-    basket.append(el('p', 'You pay our PayPal sandbox merchant with test money. No real furniture is ordered or shipped. Retailer links are separate.', 'sandbox-note'));
+    basket.append(el('p', 'You pay RoomWeft through PayPal. Retailer links are separate.', 'sandbox-note'));
     const quote = state.quote; const changed = quote ? quoteChanged(quote, design) : false;
     if (quote?.state === 'capture_unknown' || quote?.state === 'capturing') basket.append(el('p', 'Checking payment', 'amber'), button('Check payment status', actions.refreshReceipt, state.busy));
-    else if (quote?.state === 'paid') basket.append(el('p', 'Paid with sandbox test money.', 'moss'), button('Freeze a new quote', actions.quote, state.busy || blocked, 'freeze-quote'));
-    else if (quote?.state === 'ordering') basket.append(el('p', 'Preparing your sandbox payment.', 'amber'), button('Check payment status', actions.refreshReceipt, state.busy));
+    else if (quote?.state === 'paid') basket.append(el('p', 'Paid with PayPal.', 'moss'), button('Freeze a new quote', actions.quote, state.busy || blocked, 'freeze-quote'));
+    else if (quote?.state === 'ordering') basket.append(el('p', 'Preparing your PayPal payment.', 'amber'), button('Check payment status', actions.refreshReceipt, state.busy));
     else {
       const again = quote?.replaces && changed ? quote.replaces : null;
       if (changed) basket.append(el('p', again ? (quote?.repriced?.length ? 'Prices changed at the shop. Make a new replacement quote.' : 'The room changed. Make a new replacement quote.')
@@ -200,8 +200,8 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
       }
       if (quote && !changed) basket.append(el('p', `Frozen total ${money(quote.totalCents)}`));
       const payments = el('div', '', 'buttons');
-      payments.append(button('Pay with the test card', () => actions.checkout('card'), payDisabled, 'pay-card'), button('Pay with PayPal (sandbox)', () => actions.checkout('paypal'), payDisabled, 'pay'));
-      basket.append(payments, el('small', "Test card from PayPal's sandbox list. Test money to our sandbox merchant. Nothing ships."));
+      payments.append(button('Pay by card', () => actions.checkout('card'), payDisabled, 'pay-card'), button('Pay with PayPal', () => actions.checkout('paypal'), payDisabled, 'pay'));
+      basket.append(payments, el('small', 'Card payments run through PayPal.'));
     }
   } if (state.checkoutMessage && state.checkoutMessage !== state.notice) basket.prepend(el('p', state.checkoutMessage, 'notice')); fragment.append(basket);
   const receipt = section(5, 'Receipt'); receipt.id = 'receipt'; receipt.dataset.testid = 'receipt'; receipt.tabIndex = -1; const sale = state.receipt;
@@ -248,9 +248,9 @@ export function renderPanel(root: HTMLElement, state: State, actions: Actions): 
       refresh.className = 'text-link';
       receipt.append(refresh);
     }
-  } else receipt.append(el('p', 'Your sandbox receipt appears here after payment.')); fragment.append(receipt);
-  const judges = el('details', '', 'judges'); judges.dataset.testid = 'judges'; judges.append(el('summary', 'For judges')); const path = el('ol'); ['Pay with the test card. No login.', 'Start with the recorded room. Keep your own desk.', 'Swap the red chair for one that fits.', 'Try Plan, then Walk through the room.', 'Freeze a quote. Pay with sandbox test money. Refund one item.'].forEach(text => path.append(el('li', text))); judges.append(path);
-  if (state.status?.judgeLogin) { judges.append(el('p', 'Sandbox buyer login'), el('p', state.status.judgeLogin.email)); const password = el('p', state.status.judgeLogin.password); password.hidden = true; const reveal = button('Show sandbox buyer password', () => { password.hidden = !password.hidden; reveal.textContent = password.hidden ? 'Show sandbox buyer password' : 'Hide sandbox buyer password'; }); judges.append(reveal, password); }
+  } else receipt.append(el('p', 'Your receipt appears here after payment.')); fragment.append(receipt);
+  const judges = el('details', '', 'judges'); judges.dataset.testid = 'judges'; judges.append(el('summary', 'For judges')); const path = el('ol'); ['Pay by card. No login needed.', 'Start with the recorded room. Keep your own desk.', 'Swap the red chair for one that fits.', 'Try Plan, then Walk through the room.', 'Freeze a quote. Pay. Refund one item.'].forEach(text => path.append(el('li', text))); judges.append(path);
+  if (state.status?.judgeLogin) { judges.append(el('p', 'PayPal buyer login'), el('p', state.status.judgeLogin.email)); const password = el('p', state.status.judgeLogin.password); password.hidden = true; const reveal = button('Show buyer password', () => { password.hidden = !password.hidden; reveal.textContent = password.hidden ? 'Show buyer password' : 'Hide buyer password'; }); judges.append(reveal, password); }
   fragment.append(judges); root.replaceChildren(fragment);
   root.querySelectorAll('details').forEach((node, index) => { node.open = openDetails[index] ?? false; });
   if (focused >= 0) root.querySelectorAll<HTMLElement>(focusable)[focused]?.focus({ preventScroll: true });
@@ -289,7 +289,7 @@ function roomSize(state: State, actions: Actions): HTMLElement {
 }
 export function renderStatus(root: HTMLElement, state: State): void {
   root.replaceChildren();
-  for (const [key, label] of [['search', 'Live search'], ['ai', 'Live AI'], ['sandbox', 'Live sandbox']] as const) { const live = state.status?.[key].live; root.append(el('span', `${label}${live ? '' : ' off today'}`, `status-pill ${live ? 'on' : 'off'}`)); }
+  for (const [key, label] of [['search', 'Live search'], ['ai', 'Live AI'], ['sandbox', 'Live payments']] as const) { const live = state.status?.[key].live; root.append(el('span', `${label}${live ? '' : ' off today'}`, `status-pill ${live ? 'on' : 'off'}`)); }
   const design = state.design; const mode = document.querySelector('#mode-label'); if (mode) mode.textContent = design?.mode === 'recorded' ? `Saved live run from ${recordedDate(design.capturedAt)}. Press Search live for a new one.` : design?.mode === 'rules' ? 'Picked by rules, no AI today' : design ? 'Live design' : 'Loading your room';
 }
 export function recordedDate(value?: string): string {

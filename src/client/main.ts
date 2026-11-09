@@ -163,7 +163,7 @@ const actions: Actions = {
       document.querySelector<HTMLElement>('#receipt')?.focus(); document.querySelector('#receipt')?.scrollIntoView({ block: 'start' });
     }
     if (next.approveUrl && next.state === 'approving') {
-      const url = approvalUrl(next.approveUrl); if (!url) throw new Error('The sandbox approval link is unavailable.');
+      const url = approvalUrl(next.approveUrl); if (!url) throw new Error('The PayPal approval link is unavailable.');
       location.assign(url);
     }
   }); },

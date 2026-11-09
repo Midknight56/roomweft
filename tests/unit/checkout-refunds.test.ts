@@ -12,7 +12,7 @@ describe("sandbox line refunds", () => {
     const refund = unwrap(await h.service.refundLine(quote.id, "reading-chair", "visitor"));
     expect(refund).toMatchObject({ quoteId: quote.id, lineId: "reading-chair", amountCents: 1250, state: "completed", paypalId: "refund" });
     const call = h.network.payments().at(-1)!;
-    expect(call.body).toEqual({ amount: { value: "12.50", currency_code: "USD" }, invoice_id: `RW-${quote.id}-R-reading-chair`, note_to_payer: "Refund for Reading chair. Sandbox only." });
+    expect(call.body).toEqual({ amount: { value: "12.50", currency_code: "USD" }, invoice_id: `RW-${quote.id}-R-reading-chair`, note_to_payer: "Refund for Reading chair." });
     expect(call.headers.get("PayPal-Request-Id")).toBe("rw-refund-capture-reading-chair");
     const receipt = unwrap(await h.service.receipt(quote.id, "visitor"));
     expect(receipt).toMatchObject({ refundedCents: 1250, lines: [{ roomObjectId: "reading-chair", source: design.slots[0].source, refund: { state: "completed", amountCents: 1250 } }], plan: [{ roomObjectId: "reading-chair", status: "returned" }] });

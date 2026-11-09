@@ -158,7 +158,7 @@ async function mainTake() {
 
     const sale = await freezeAndCheckout(page, 'card');
     const receipt = page.getByTestId('receipt');
-    await receipt.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+    await receipt.getByText('Paid with PayPal', { exact: true }).waitFor();
     await hold(page, 'main', 'pay', startedAt, 5, await textOf(receipt));
 
     const lines = receipt.locator('.receipt-line');
@@ -233,7 +233,7 @@ async function paypalTake() {
     await approveBuyer(page, checkout.approveUrl, { email: process.env.BUYER_EMAIL, password: process.env.BUYER_PASSWORD });
     const paypalText = await page.locator('body').innerText();
     await hold(page, 'paypal', 'paypal-page', startedAt, 4, paypalText);
-    await ready(page); const receipt = page.getByTestId('receipt'); await receipt.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+    await ready(page); const receipt = page.getByTestId('receipt'); await receipt.getByText('Paid with PayPal', { exact: true }).waitFor();
     await hold(page, 'paypal', 'paypal-paid', startedAt, 4, await textOf(receipt));
   } catch (error) { failures.push({ take: 'paypal', error: String(error?.message ?? error) }); }
   finally { await closeTake('paypal', take).catch(error => failures.push({ take: 'paypal', error: String(error?.message ?? error) })); }
@@ -388,7 +388,7 @@ async function storyTake() {
       take.sale = answer; break;
     }
     const receipt = page.getByTestId('receipt');
-    await receipt.getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+    await receipt.getByText('Paid with PayPal', { exact: true }).waitFor();
     await holdOn(page, 'story', 'pay', startedAt, 6, receipt, repriced ? 'repriced first' : '');
     const line = receipt.locator('.receipt-line').first(); await pointAt(page, line);
     await hold(page, 'story', 'thread', startedAt, 4, await textOf(line));

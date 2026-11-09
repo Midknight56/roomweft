@@ -259,7 +259,7 @@ export class CheckoutService {
       intent: "CAPTURE",
       purchase_units: [{
         reference_id: "room", custom_id: `roomweft:${row.id}`, invoice_id: `RW-${row.id}-${row.attempt}`,
-        description: "RoomWeft sandbox basket. No real goods are sold.", soft_descriptor: "ROOMWEFT",
+        description: "RoomWeft room basket.", soft_descriptor: "ROOMWEFT",
         items: lines.map(line => ({ name: line.title, sku: line.roomObjectId,
           unit_amount: { currency_code: "USD", value: dollars(line.priceCents) }, quantity: "1", category: "PHYSICAL_GOODS" })),
         amount: { currency_code: "USD", value: dollars(row.total_cents), breakdown: { item_total: { currency_code: "USD", value: dollars(row.total_cents) } } },
@@ -281,7 +281,7 @@ export class CheckoutService {
       || (result.ok && captures(result.body).some(capture => ["DECLINED", "DENIED"].includes(capture.status ?? "")));
     if (declined) {
       await this.db.prepare("UPDATE quotes SET state = 'declined', error = ?, updated_at = ? WHERE id = ? AND state != 'paid'")
-        .bind("PayPal declined the test card. Your room is unchanged.", this.clock(), row.id).run();
+        .bind("PayPal declined the card. Your room is unchanged.", this.clock(), row.id).run();
     } else await this.markUnknown(row.id);
   }
 
@@ -419,7 +419,7 @@ export class CheckoutService {
     }
     const response = await this.paypal.refundCapture(quote.capture_id, {
       amount: { value: dollars(line.priceCents), currency_code: "USD" }, invoice_id: `RW-${quoteId}-R-${lineId}`,
-      note_to_payer: `Refund for ${line.title}. Sandbox only.`,
+      note_to_payer: `Refund for ${line.title}.`,
     }, `rw-refund-${quote.capture_id}-${lineId}`);
     if (response.ok) await this.applyRefund(id, response.body);
     else if (response.kind === "http") await this.setRefund(id, "failed", null);

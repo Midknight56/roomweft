@@ -114,7 +114,7 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
     return Response.redirect(target.href, 303);
   }
   if (post && path === '/webhooks/paypal') {
-    if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_SECRET || !env.PAYPAL_WEBHOOK_ID) throw new HttpError(503, 'sandbox_off', 'Sandbox payments are unavailable.');
+    if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_SECRET || !env.PAYPAL_WEBHOOK_ID) throw new HttpError(503, 'sandbox_off', 'Payments are unavailable today.');
     return s.webhook.handleWebhook(request.headers, await bodyText(request));
   }
   const receipt = /^\/api\/receipt\/([^/]+)$/.exec(path);
@@ -146,7 +146,7 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
     return Response.json(await s.designs.move(id, visitor, stringField(body, 'itemId'), numberField(body, 'x'), numberField(body, 'z'), rotation(body)));
   }
   if (path === '/api/quote') return serviceResponse(await s.checkout.freezeQuote(stringField(body, 'designId'), numberField(body, 'version'), visitor));
-  if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_SECRET || !env.PAYPAL_WEBHOOK_ID) throw new HttpError(503, 'sandbox_off', 'Sandbox payments are unavailable.');
+  if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_SECRET || !env.PAYPAL_WEBHOOK_ID) throw new HttpError(503, 'sandbox_off', 'Payments are unavailable today.');
   const quoteId = stringField(body, 'quoteId');
   // Ownership and repeat attempts are checked before consuming a daily allowance.
   const quote = await env.DB.prepare('SELECT state FROM quotes WHERE id = ? AND visitor = ?').bind(quoteId, visitor).first<{ state: string }>();
@@ -165,7 +165,7 @@ async function route(request: Request, env: Env, visitor: string, makeServices: 
     return Response.json({ quote: result.value, design: await s.designs.get(result.value.designId, visitor) });
   }
   const method = body.method ?? 'paypal';
-  if (method !== 'paypal' && method !== 'card') throw new HttpError(400, 'invalid', 'Choose a sandbox payment method.');
+  if (method !== 'paypal' && method !== 'card') throw new HttpError(400, 'invalid', 'Choose a payment method.');
   if (['open', 'cancelled'].includes(quote.state) && !await takeCounter(env.DB, `checkout:${visitor}`, CHECKOUTS_PER_DAY, now)) throw new HttpError(429, 'checkout_cap', 'You have used all six checkouts today. Please return tomorrow.');
   const result = await s.checkout.startCheckout(quoteId, visitor, { method, recheck: async lines => {
     const recheck = await recheckPrices(lines, s.channel3, now);

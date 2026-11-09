@@ -25,7 +25,7 @@ describe("sandbox test card", () => {
     const h = harness(); const quote = await h.quote();
     h.network.steps.push(mode === "http" ? { path: createPath, status: 422, body: { name: "UNPROCESSABLE_ENTITY" } }
       : { path: createPath, body: { id: "order", status: "COMPLETED", purchase_units: [{ payments: { captures: [{ status: "DECLINED" }] } }] } });
-    expect(unwrap(await h.service.startCheckout(quote.id, "visitor", { method: "card" }))).toMatchObject({ state: "declined", error: "PayPal declined the test card. Your room is unchanged." });
+    expect(unwrap(await h.service.startCheckout(quote.id, "visitor", { method: "card" }))).toMatchObject({ state: "declined", error: "PayPal declined the card. Your room is unchanged." });
   });
   it.each(["timeout", "server"])("recovers %s with the same create request id and then GET", async mode => {
     const h = harness(); const quote = await h.quote();

@@ -77,7 +77,7 @@ try {
       assert.equal(sale.quote.id, frozen.id); assert.equal(sale.quote.state, 'paid'); assert.ok(sale.orderId); assert.ok(sale.captureId);
       assert.equal(sale.lines.length, room.slots.filter(slot => slot.pick).length);
       assert.ok(sale.lines.every(line => room.slots.some(slot => slot.slot === line.roomObjectId && slot.pick.id === line.productId)));
-      await cardPage.getByTestId('receipt').getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+      await cardPage.getByTestId('receipt').getByText('Paid with PayPal', { exact: true }).waitFor();
       const text = await cardPage.getByTestId('receipt').innerText(); assert.ok(text.includes(sale.orderId)); assert.ok(text.includes(sale.captureId));
       assert.equal(new URL(cardPage.url()).origin, base.origin);
     } finally { await cardContext.close(); }

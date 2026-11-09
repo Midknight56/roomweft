@@ -137,7 +137,7 @@ it('renders page hooks, keyboard actions, server totals, returns, readiness and 
     expect(await page.locator('[role="alert"]').innerText()).toContain('The desk is locked. Unlock it first.');
     await page.getByTestId('mode-overview').click(); expect(await floor.isVisible()).toBe(false);
     await page.getByTestId('freeze-quote').click(); await page.getByTestId('pay').waitFor();
-    await page.getByTestId('pay-card').click(); await page.getByTestId('receipt').getByText('Paid in the PayPal sandbox', { exact: true }).waitFor();
+    await page.getByTestId('pay-card').click(); await page.getByTestId('receipt').getByText('Paid with PayPal', { exact: true }).waitFor();
     expect(await page.getByTestId('receipt').innerText()).toContain('Capture test-capture');
     expect(await page.getByTestId('receipt').evaluate(node => { const box = node.getBoundingClientRect(); return box.top >= 0 && box.top < innerHeight; })).toBe(true);
     await page.setViewportSize({ width: 599, height: 800 }); expect(await page.locator('.room-caption').isVisible()).toBe(true);

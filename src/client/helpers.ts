@@ -111,7 +111,7 @@ export function eventTimeText(timestamp: number): string {
 }
 export function receiptStateText(state: QuoteView['state'], recorded = false): string {
   if (recorded) return 'Recorded sale, not paid';
-  if (state === 'paid') return 'Paid in the PayPal sandbox';
+  if (state === 'paid') return 'Paid with PayPal';
   if (state === 'capturing' || state === 'capture_unknown') return 'Payment pending';
   if (state === 'declined') return 'Payment declined';
   return 'Not paid';
