@@ -12,6 +12,7 @@ import { CheckoutWebhook } from './checkout/webhook';
 import { CHECKOUTS_PER_DAY, LIVE_DESIGNS_PER_DAY, REFUNDS_PER_DAY, SEARCHES_PER_DAY, PRICE_MAX_AGE } from './limits';
 import { HttpError, bodyText, jsonBody, numberField, stringField } from './http/request';
 import { errorResponse, finish, visitorCookie } from './http/response';
+import { countVisit, shouldCount } from './visit-count';
 
 export function services(env: Env) {
   const channel3 = new Channel3({ db: env.DB, apiKey: env.CHANNEL3_API_KEY });
@@ -67,7 +68,8 @@ export async function recheckPrices(lines: readonly QuoteLine[], channel3: Pick<
 // Tests inject the service boundary while integration tests use the real local databases.
 export function createWorker(makeServices: (env: Env) => Services = services, now: () => number = Date.now) {
   return {
-    async fetch(request: Request, env: Env): Promise<Response> {
+    async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+      if (shouldCount(request) && typeof ctx?.waitUntil === "function") ctx.waitUntil(countVisit(request, env, 'roomweft'))
       const visitor = visitorCookie(request);
       let response: Response;
       try { response = await route(request, env, visitor.id, makeServices, now()); }
