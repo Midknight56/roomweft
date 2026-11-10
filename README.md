@@ -5,6 +5,18 @@ budget, lets you walk through the room in 3D, and then you pay for the basket in
 
 Live: https://roomweft.midknight-labs.workers.dev
 
+## Judging criteria at a glance
+
+**Technological Implementation.** PayPal Orders v2 (create and capture, a card payment source for the test card, an order read to recover a lost answer), Payments v2 (refund of one line, refund read) and webhooks checked with PayPal's signature verification. AI: IBM Granite 4.0 H Micro on Workers AI turns one sentence into a search brief and picks one candidate per slot; code checks every field. On 9 Nov the build passed 536 unit tests and 28 named browser checks.
+
+**Design.** A 3D room with overview, plan and walk views. Every pick is checked against your walls, the door swing and a 76 cm walkway, which is drawn on the floor. A piece without a usable size says "fit unverified".
+
+**Potential Impact.** For renters who keep the furniture they own and need a few more pieces. A chair that looks right in a photo can still block the door when it arrives.
+
+**Innovation/Idea.** Real products fitted around the furniture you already own, with the same geometry checks on the server and the page. A refund is tied to the object in the room, and its replacement gets a new one piece quote.
+
+**Presentation.** The video runs 2 minutes 58 seconds. At https://roomweft.midknight-labs.workers.dev a judge can pay with the sandbox test card in about a minute, with no login.
+
 ## For judges
 
 No login is needed. Pay with PayPal's published sandbox test card. The PayPal button uses a sandbox buyer (test money
