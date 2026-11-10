@@ -7,15 +7,17 @@ Live: https://roomweft.midknight-labs.workers.dev
 
 ## Judging criteria at a glance
 
-**Technological Implementation.** PayPal Orders v2 (create and capture, a card payment source for the test card, an order read to recover a lost answer), Payments v2 (refund of one line, refund read) and webhooks checked with PayPal's signature verification. AI: IBM Granite 4.0 H Micro on Workers AI turns one sentence into a search brief and picks one candidate per slot; code checks every field. On 9 Nov the build passed 536 unit tests and 28 named browser checks.
+**In short.** RoomWeft is for renters who keep the furniture they own and need a few more pieces. Enter the room and the pieces that stay, then say what you want in one sentence. AI turns the sentence into a budget and search words. Channel3 returns real products, and code checks every piece against the walls, the door swing and a 76 cm walkway. Freeze the quote and pay by card through PayPal. A refund is tied to its piece in the room.
 
-**Design.** A 3D room with overview, plan and walk views. Every pick is checked against your walls, the door swing and a 76 cm walkway, which is drawn on the floor. A piece without a usable size says "fit unverified".
+**Technological Implementation.** PayPal Orders v2 (create and capture, a card payment source for the test card, an order read to recover a lost answer), Payments v2 (refund of one line, refund read) and webhooks checked with PayPal's signature verification. AI: IBM Granite 4.0 H Micro on Workers AI turns one sentence into a search brief and picks one candidate per slot; code checks every field. On 9 Nov the build passed 536 unit tests and 28 named browser checks. Channel3 product search supplies the real products and their listed sizes. Check it: [src/checkout/service.ts](https://github.com/Midknight56/roomweft/blob/main/src/checkout/service.ts), [src/checkout/webhook.ts](https://github.com/Midknight56/roomweft/blob/main/src/checkout/webhook.ts), [src/products/channel3.ts](https://github.com/Midknight56/roomweft/blob/main/src/products/channel3.ts), [src/ai/pick.ts](https://github.com/Midknight56/roomweft/blob/main/src/ai/pick.ts).
+
+**Design.** A 3D room with overview, plan and walk views. Every pick is checked against your walls, the door swing and a 76 cm walkway, which is drawn on the floor. A piece without a usable size says "fit unverified". Check it: [src/client/door.ts](https://github.com/Midknight56/roomweft/blob/main/src/client/door.ts), [src/client/walkway-strip.ts](https://github.com/Midknight56/roomweft/blob/main/src/client/walkway-strip.ts).
 
 **Potential Impact.** For renters who keep the furniture they own and need a few more pieces. A chair that looks right in a photo can still block the door when it arrives.
 
-**Innovation/Idea.** Real products fitted around the furniture you already own, with the same geometry checks on the server and the page. A refund is tied to the object in the room, and its replacement gets a new one piece quote.
+**Innovation/Idea.** Real products fitted around the furniture you already own, with the same geometry checks on the server and the page. A refund is tied to the object in the room, and its replacement gets a new one piece quote. A product photo shows a piece alone. RoomWeft checks it against your walls and the furniture you keep before you pay. Check it: [src/design/rules.ts](https://github.com/Midknight56/roomweft/blob/main/src/design/rules.ts).
 
-**Presentation.** The video runs 2 minutes 58 seconds. At https://roomweft.midknight-labs.workers.dev a judge can pay with the sandbox test card in about a minute, with no login.
+**Presentation.** The video runs 2 minutes 58 seconds. At https://roomweft.midknight-labs.workers.dev a judge can pay with the sandbox test card in about a minute, with no login. Video guide: 0:27 a chair that blocks the door; 0:39 one click swaps in a chair that fits; 0:53 the 76 cm walkway check fails; 1:08 a rug with no size is marked fit unverified; 1:53 pay by card through PayPal; 2:13 refund one piece and the room shows it.
 
 ## For judges
 
